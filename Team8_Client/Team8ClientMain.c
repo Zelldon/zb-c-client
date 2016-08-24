@@ -19,21 +19,10 @@
 #include "tngp.h"
 
 
-char* createBuffer(size_t size) {
-  //create buffer
-  char * buffer = malloc(size);
-  //init buffer
-  memset(buffer, 0, size);
-  return buffer;
-}
-
-
 int main(int argc, char** argv) {
   puts("Welcome to the Team8-Client\n");
 
   //init
-  //create buffer
-  char* buffer = createBuffer(512);
   const char host[10] = "localhost\0";
   //connect
   int filedescriptor = connectServer(host);
@@ -44,29 +33,14 @@ int main(int argc, char** argv) {
   }
   puts("Connected\nSending message...");
 
-  //write message
-  //  memset(buffer, 0, 256);
-
-  for (int i = 0; i < 3; i++) {
-    char message[16] = "Test 1234567890\0";
+//  for (int i = 0; i < 3; i++) {
+    char message[] = "Test 1234567890\0";
     int n = sendMessage(filedescriptor, message);
     if (n < 0) {
       perror("ERROR writing to socket");
       return (EXIT_FAILURE);
     }
-  }
-
-  //read response
-//  memset(buffer, 0, 256);
-//  n = read(filedescriptor, buffer, 255);
-//  if (n < 0) {
-//    perror("ERROR reading from socket");
-//    return (EXIT_FAILURE);
 //  }
-//  printf("%s\n", buffer);
 
-  //END
-  //clean up
-  free(buffer);
   return (EXIT_SUCCESS);
 }

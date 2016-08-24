@@ -52,7 +52,10 @@ int connectServer(const char* host) {
 struct Message* _createMessage(char* msg, int len) {
   // init message
   struct Message* message = malloc(sizeof(struct Message));
-  memset(message, 0, sizeof (struct Message));
+  if (message == NULL) {
+    exit(-1);
+  }
+
   message->len = len;// htonl(len);
   message->version = 1;
   message->flags = 2;
@@ -60,9 +63,12 @@ struct Message* _createMessage(char* msg, int len) {
   message->streamId = 1;//htonl(1);
 
   message->msg = malloc(len);
-//  memset(message->msg, 0, allocatedMsgSize);
+  if (message == NULL) {
+    exit(-1);
+  }
+
   memcpy(message->msg, msg, len);
-//  int allocatedMsgSize = strlen(message->msg);
+
   return message;
 }
 
@@ -74,7 +80,7 @@ struct Message* _createMessage(char* msg, int len) {
  * @param len the length of the hole message
  * @return the status of the send
  */
-int _sendMessage(int fileDescriptor, struct Message* message, int len) {
+int _sendMessage(int fileDescriptor, char* message, int len) {
   int writtenBytes = 0;
   while (writtenBytes < len) {
 
@@ -82,7 +88,6 @@ int _sendMessage(int fileDescriptor, struct Message* message, int len) {
       puts("Seek failed!");
       return -1;
     }
-
 
     int n = write(fileDescriptor, message, len);
     if (n <= 0) {
@@ -95,6 +100,15 @@ int _sendMessage(int fileDescriptor, struct Message* message, int len) {
   }
 }
 
+/**
+ * Returns next aligned size. The returned size is completely divisible with 8.
+ *
+ * @param size the size which should be aligned
+ * @return the aligned size
+ */
+int _allignedSize(int size) {
+  return (size + (8 - 1)) & ~(8 - 1);
+}
 /**
  * Sends the message to the connected server, with help of the file descriptor.
  *
@@ -111,9 +125,19 @@ int sendMessage(int fileDescriptor, char* msg) {
 
   struct Message* message = _createMessage(msg, len);
   int bytes =  header_len + len;
-  _sendMessage(fileDescriptor, message, bytes);
+  //we need buffer aligned to 8 divid
+  int allignedSize = _allignedSize(bytes);
+
+  //create buffer and copy values
+  char* buffer = malloc(allignedSize);
+  memcpy(buffer, (char*) message, bytes);
+  memcpy(&buffer[header_len], message->msg, len);
+
+  //send message
+  _sendMessage(fileDescriptor, buffer, bytes);
 
   //clean up
+  free(buffer);
   free(message->msg);
   free(message);
   return 0;

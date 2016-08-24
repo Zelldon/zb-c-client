@@ -49,7 +49,6 @@ struct Message {
   short type;
   int streamId;
   char* msg;
-
 };
 
 /**
