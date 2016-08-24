@@ -13,47 +13,60 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/socket.h>
 #include<string.h>
+#include <unistd.h>
+
+#include "tngp.h"
 
 
 char* createBuffer(size_t size) {
   //create buffer
   char * buffer = malloc(size);
   //init buffer
-  memset(buffer, 'A', size);
+  memset(buffer, 0, size);
   return buffer;
 }
 
-/*
- *
- */
-int main(int argc, char** argv) {
-  printf("Welcome to the Team8-Client\n");
 
+int main(int argc, char** argv) {
+  puts("Welcome to the Team8-Client\n");
+
+  //init
   //create buffer
   char* buffer = createBuffer(512);
-
-  //Maybe we use SOCK_SEQPACKET instead
-  //SOCK_STREAM will end to TCP
-  int filedescriptor = socket(AF_INET, SOCK_STREAM, 0);
+  const char host[10] = "localhost\0";
+  //connect
+  int filedescriptor = connectServer(host);
   if (filedescriptor < 0) {
+    //failed
+    perror("ERROR connection failed!");
     return (EXIT_FAILURE);
   }
+  puts("Connected\nSending message...");
 
-  printf("Socket opened on 50000.\n");
+  //write message
+  //  memset(buffer, 0, 256);
 
-  struct sockaddr addr;
+  for (int i = 0; i < 3; i++) {
+    char message[16] = "Test 1234567890\0";
+    int n = sendMessage(filedescriptor, message);
+    if (n < 0) {
+      perror("ERROR writing to socket");
+      return (EXIT_FAILURE);
+    }
+  }
 
-//  connect(filedescriptor, )
-
-
-
-
+  //read response
+//  memset(buffer, 0, 256);
+//  n = read(filedescriptor, buffer, 255);
+//  if (n < 0) {
+//    perror("ERROR reading from socket");
+//    return (EXIT_FAILURE);
+//  }
+//  printf("%s\n", buffer);
 
   //END
   //clean up
   free(buffer);
   return (EXIT_SUCCESS);
 }
-
