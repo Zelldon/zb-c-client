@@ -31,3 +31,9 @@
 # Debug files
 *.dSYM/
 *.su
+
+#project files
+/Team8_Client/build/
+/Team8_Client/dist/
+/Team8_Client/nbproject/
+/Team8_Client/.dep.inc
