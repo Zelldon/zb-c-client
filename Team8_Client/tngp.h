@@ -33,6 +33,7 @@ extern "C" {
 #include <stddef.h>
 
 #define CREATE_TASK_REQUEST 0
+#define POLL_AND_LOCK_REQUEST 1
 
 #define PORT 51015
 
@@ -67,24 +68,43 @@ struct TransportProtocol {
   char* body;
 };
 
+
+struct VariableData {
+  short length;
+  char* data;
+};
+
 #define TASK_CREATE_HEADER_LEN TASK_CREATE_HEADER_TYPE_LEN + TASK_CREATE_HEADER_PAYLOAD_LEN
 #define TASK_CREATE_HEADER_TYPE_LEN 2
 #define TASK_CREATE_HEADER_PAYLOAD_LEN 2
 
 struct TaskCreateMessage {
-  //task type
-  short taskTypeLength;
-  char* taskTypeVarData;
+  struct VariableData* taskType;
 
-  //payload
-  short payloadLen;
-  char* payloadVarData;
+  struct VariableData* payload;
+//  //task type
+//  short taskTypeLength;
+//  char* taskTypeVarData;
+
+//  //payload
+//  short payloadLen;
+//  char* payloadVarData;
 };
 
 #define SERVER_ACK_LEN 8
 
 struct SingleTaskServerAckMessage {
   long taskId;
+};
+
+struct PollAndLockTaskMessage {
+  short consumerId;
+  long lockTime;
+  short maxTasks;
+
+  //task type
+  short taskTypeLength;
+  char* taskTypeVarData;
 };
 
 /**
@@ -125,6 +145,8 @@ struct Message* readServerAck(int fileDescriptor);
  */
 int createTask(int fileDescriptor, const char* topic);
 
+
+int pollAndLockTask(int fileDescriptor, const char* topic);
 
 #ifdef __cplusplus
 }
