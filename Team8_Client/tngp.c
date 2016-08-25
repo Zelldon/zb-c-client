@@ -53,7 +53,7 @@ struct Message* _createMessage(char* msg, int len) {
   // init message
   struct Message* message = malloc(sizeof(struct Message));
   if (message == NULL) {
-    exit(-1);
+    return message;
   }
 
   message->len = len;// htonl(len);
@@ -62,9 +62,9 @@ struct Message* _createMessage(char* msg, int len) {
   message->type = 0;//htons(4);
   message->streamId = 1;//htonl(1);
 
-  message->msg = malloc(len);
-  if (message == NULL) {
-    exit(-1);
+  message->msg = calloc(len, sizeof(char));
+  if (message->msg == NULL) {
+    return message;
   }
 
   memcpy(message->msg, msg, len);
@@ -129,12 +129,12 @@ int sendMessage(int fileDescriptor, char* msg) {
   int allignedSize = _allignedSize(bytes);
 
   //create buffer and copy values
-  char* buffer = malloc(allignedSize);
+  char* buffer = calloc(allignedSize, sizeof(char));
   memcpy(buffer, (char*) message, bytes);
   memcpy(&buffer[header_len], message->msg, len);
 
   //send message
-  _sendMessage(fileDescriptor, buffer, bytes);
+  _sendMessage(fileDescriptor, buffer, allignedSize);
 
   //clean up
   free(buffer);
