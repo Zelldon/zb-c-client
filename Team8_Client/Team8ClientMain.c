@@ -33,14 +33,13 @@ int main(int argc, char** argv) {
   }
   puts("Connected\nSending message...");
 
-  for (int i = 0; i < 3; i++) {
-    char message[] = "Test 1234567890\0";
-    int n = sendMessage(filedescriptor, message);
+//  for (int i = 0; i < 3; i++) {
+    int n = createTask(filedescriptor);// sendMessage(filedescriptor, message);
     if (n < 0) {
       perror("ERROR writing to socket");
       return (EXIT_FAILURE);
     }
-  }
+//  }
 
   return (EXIT_SUCCESS);
 }

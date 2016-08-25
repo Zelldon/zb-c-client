@@ -32,6 +32,51 @@ extern "C" {
 
 #define PORT 51015
 
+#define MSG_HEADER_LEN 12
+
+struct Message {
+  //head
+  int len;
+  char version;
+  char flags;
+  short type;
+  int streamId;
+  //body
+  struct TransportProtocol* body;
+};
+
+#define TRANS_HEADER_LEN 28
+
+struct TransportProtocol {
+  long connectionId;
+  long requestId;
+
+  //header
+  short blockLength;
+  short templateId;
+  short schemaId;
+  short version;
+  short resourceId;
+  short shardId;
+  //body
+  char* body;
+};
+
+#define TASK_CREATE_HEADER_LEN 6
+
+struct TaskCreateMessage {
+
+  //task type
+  short taskTypeLength;
+  char taskTypeVarData;
+
+  //payload
+  short payloadLen;
+  char payloadVarData;
+
+
+};
+
 
 /**
  * Connects to the server with the given parameter.
@@ -42,26 +87,25 @@ extern "C" {
  */
 int connectServer(const char* host);
 
-struct Message {
-  int len;
-  char version;
-  char flags;
-  short type;
-  int streamId;
-  char* msg;
-};
-
 /**
- * Sends the message to the connected server, with help of the file descriptor.
+ * Sends the transport protocol message to the connected server, with help of the file descriptor.
  *
  * @param fileDescriptor the file descriptor of the connected socket
- * @param msg the message which should be send
+ * @param transportProtocol the transportProtocol message which should be send
+ * @param len the length of the hole message
  * @return the status of the send
  */
-int sendMessage(int fileDescriptor, char* msg);
+int sendMessage(int fileDescriptor, struct TransportProtocol* transportProtocol, int len);
 
 
-#define header_len 12
+
+/**
+ * Uses the given file descriptor to send a create task message to the server.
+ *
+ * @param fileDescriptor the file descriptor of the connected socket
+ * @return the status of the send
+ */
+int createTask(int fileDescriptor);
 
 
 #ifdef __cplusplus
