@@ -18,7 +18,6 @@
 
 #include "tngp.h"
 
-
 int main(int argc, char** argv) {
   puts("Welcome to the Team8-Client\n");
 
@@ -33,13 +32,26 @@ int main(int argc, char** argv) {
   }
   puts("Connected\nSending message...");
 
-//  for (int i = 0; i < 3; i++) {
-    int n = createTask(filedescriptor);// sendMessage(filedescriptor, message);
-    if (n < 0) {
-      perror("ERROR writing to socket");
-      return (EXIT_FAILURE);
-    }
-//  }
+  const char* topic = "TaskTopic";
+  //  for (int i = 0; i < 3; i++) {
+  int n = 0;
+  n = createTask(filedescriptor, topic); // sendMessage(filedescriptor, message);
+  if (n < 0) {
+    perror("ERROR writing to socket");
+    return (EXIT_FAILURE);
+  }
+  //  }
+
+  char* buffer = calloc(1024, sizeof(char));
+  n = read(filedescriptor, buffer, 1024);
+  if (n < 0) {
+    perror("ERROR writing to socket");
+    return (EXIT_FAILURE);
+  }
+  char b[n];
+  memcpy(b, buffer, n);
+  printf("Response: %s", b);
+
 
   return (EXIT_SUCCESS);
 }

@@ -29,6 +29,9 @@ extern "C" {
 #include<string.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
+
+#define CREATE_TASK_REQUEST 0
 
 #define PORT 51015
 
@@ -59,22 +62,22 @@ struct TransportProtocol {
   short resourceId;
   short shardId;
   //body
+  long bodyLen;
   char* body;
 };
 
-#define TASK_CREATE_HEADER_LEN 6
+#define TASK_CREATE_HEADER_LEN TASK_CREATE_HEADER_TYPE_LEN + TASK_CREATE_HEADER_PAYLOAD_LEN
+#define TASK_CREATE_HEADER_TYPE_LEN 2
+#define TASK_CREATE_HEADER_PAYLOAD_LEN 2
 
 struct TaskCreateMessage {
-
   //task type
   short taskTypeLength;
-  char taskTypeVarData;
+  char* taskTypeVarData;
 
   //payload
   short payloadLen;
-  char payloadVarData;
-
-
+  char* payloadVarData;
 };
 
 
@@ -97,15 +100,14 @@ int connectServer(const char* host);
  */
 int sendMessage(int fileDescriptor, struct TransportProtocol* transportProtocol, int len);
 
-
-
 /**
  * Uses the given file descriptor to send a create task message to the server.
  *
  * @param fileDescriptor the file descriptor of the connected socket
+ * @param topic the topic of the task
  * @return the status of the send
  */
-int createTask(int fileDescriptor);
+int createTask(int fileDescriptor, const char* topic);
 
 
 #ifdef __cplusplus
