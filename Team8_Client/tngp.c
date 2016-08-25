@@ -87,7 +87,7 @@ struct Message* _createMessage(struct TransportProtocol* transportPortocol, int 
   memcpy(message->body, transportPortocol, len);
 
   int transportProtocolBodyLen = transportPortocol->bodyLen;
-  message->body->body = calloc(transportProtocolBodyLen, sizeof(char));
+  message->body->body = calloc(transportProtocolBodyLen, sizeof (char));
   if (message->body->body == NULL) {
     return message;
   }
@@ -189,7 +189,7 @@ int sendMessage(int fileDescriptor, struct TransportProtocol* transportProtocol,
 int _initTransportProtocolBody(struct TransportProtocol* transportProtocol, struct TaskCreateMessage* taskCreateMsg) {
 
   int bodySize = transportProtocol->bodyLen;
-  transportProtocol->body = calloc(bodySize, sizeof(char));
+  transportProtocol->body = calloc(bodySize, sizeof (char));
   if (transportProtocol->body == NULL) {
     _cleanUpTransportProtocol(transportProtocol);
     return -1;
@@ -238,7 +238,7 @@ int createTask(int fileDescriptor, const char* topic) {
     taskCreateMsg.taskTypeLength = strlen(topic);
   } else {
     taskCreateMsg.taskTypeLength = strlen(topic);
-    taskCreateMsg.taskTypeVarData = calloc(taskCreateMsg.taskTypeLength, sizeof(char));
+    taskCreateMsg.taskTypeVarData = calloc(taskCreateMsg.taskTypeLength, sizeof (char));
     if (taskCreateMsg.taskTypeVarData == NULL) {
       _cleanUpTransportProtocol(transportProtocol);
       return -1;
@@ -263,4 +263,43 @@ int createTask(int fileDescriptor, const char* topic) {
   free(taskCreateMsg.taskTypeVarData);
   _cleanUpTransportProtocol(transportProtocol);
   return result;
+}
+
+struct Message* readServerAck(int fileDescriptor) {
+  const int ackSize = 48;
+  char* buffer = calloc(ackSize, sizeof (char));
+  if (buffer == NULL) {
+    return NULL;
+  }
+  int n = read(fileDescriptor, buffer, ackSize);
+
+
+  struct Message* serverAck = malloc(sizeof (struct Message));
+  if (serverAck == NULL) {
+    return NULL;
+  }
+
+  if (n > MSG_HEADER_LEN) {
+    memcpy(serverAck, buffer, MSG_HEADER_LEN);
+    if (n > MSG_HEADER_LEN + TRANS_HEADER_LEN) {
+
+      serverAck->body = malloc(sizeof (struct TransportProtocol));
+      if (serverAck->body == NULL) {
+        _cleanUpMessage(serverAck);
+        return NULL;
+      }
+      memcpy(serverAck->body, &buffer[MSG_HEADER_LEN], TRANS_HEADER_LEN);
+
+      if (n >= MSG_HEADER_LEN + TRANS_HEADER_LEN + SERVER_ACK_LEN) {
+        serverAck->body->body = malloc(sizeof(struct SingleTaskServerAckMessage));
+        if (serverAck->body->body == NULL) {
+          _cleanUpMessage(serverAck);
+          return NULL;
+        }
+        memcpy(serverAck->body->body, &buffer[MSG_HEADER_LEN + TRANS_HEADER_LEN], SERVER_ACK_LEN);
+        serverAck->body->bodyLen = SERVER_ACK_LEN;
+      }
+    }
+  }
+  return serverAck;
 }

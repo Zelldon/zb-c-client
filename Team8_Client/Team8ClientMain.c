@@ -20,37 +20,39 @@
 
 int main(int argc, char** argv) {
   puts("Welcome to the Team8-Client\n");
-
-  //init
   const char host[10] = "localhost\0";
-  //connect
-  int filedescriptor = connectServer(host);
-  if (filedescriptor < 0) {
+
+  //connect with the server
+  int fileDescriptor = connectServer(host);
+  if (fileDescriptor < 0) {
     //failed
     perror("ERROR connection failed!");
     return (EXIT_FAILURE);
   }
-  puts("Connected\nSending message...");
+  puts("Connected\nCreating task...\n");
 
+  //create task with topic
   const char* topic = "TaskTopic";
   //  for (int i = 0; i < 3; i++) {
-  int n = 0;
-  n = createTask(filedescriptor, topic); // sendMessage(filedescriptor, message);
+  int n = createTask(fileDescriptor, topic);
   if (n < 0) {
     perror("ERROR writing to socket");
     return (EXIT_FAILURE);
   }
+  printf("Task with topic %s created.\n", topic);
   //  }
 
-  char* buffer = calloc(1024, sizeof(char));
-  n = read(filedescriptor, buffer, 1024);
-  if (n < 0) {
-    perror("ERROR writing to socket");
+
+  //read server acknowledgment
+  struct Message* serverAck = readServerAck(fileDescriptor);
+  if (serverAck == NULL) {
+    perror("ERROR reading from socket");
     return (EXIT_FAILURE);
   }
-  char b[n];
-  memcpy(b, buffer, n);
-  printf("Response: %s", b);
+  struct SingleTaskServerAckMessage* ack = (struct SingleTaskServerAckMessage*) serverAck->body->body;
+  printf("Got server acknowledgment that task with topic %s was successfully created.\nTask has id: %ld", topic, ack->taskId);
+
+
 
 
   return (EXIT_SUCCESS);

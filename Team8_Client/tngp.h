@@ -30,6 +30,7 @@ extern "C" {
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 
 #define CREATE_TASK_REQUEST 0
 
@@ -80,6 +81,11 @@ struct TaskCreateMessage {
   char* payloadVarData;
 };
 
+#define SERVER_ACK_LEN 8
+
+struct SingleTaskServerAckMessage {
+  long taskId;
+};
 
 /**
  * Connects to the server with the given parameter.
@@ -99,6 +105,16 @@ int connectServer(const char* host);
  * @return the status of the send
  */
 int sendMessage(int fileDescriptor, struct TransportProtocol* transportProtocol, int len);
+
+
+/**
+ * Reads the acknowledgment of the server that a task was created,
+ *
+ * @param fileDescriptor the file descriptor of the connected socket
+ * @return the message which was read and send by the server. The server contains the header and single task acknowledgment.
+ *         NULL if something goes wrong.
+ */
+struct Message* readServerAck(int fileDescriptor);
 
 /**
  * Uses the given file descriptor to send a create task message to the server.
