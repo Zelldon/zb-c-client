@@ -79,16 +79,10 @@ struct VariableData {
 #define TASK_CREATE_HEADER_PAYLOAD_LEN 2
 
 struct TaskCreateMessage {
+  //task type
   struct VariableData* taskType;
-
+  //payload
   struct VariableData* payload;
-//  //task type
-//  short taskTypeLength;
-//  char* taskTypeVarData;
-
-//  //payload
-//  short payloadLen;
-//  char* payloadVarData;
 };
 
 #define SERVER_ACK_LEN 8
@@ -97,14 +91,16 @@ struct SingleTaskServerAckMessage {
   long taskId;
 };
 
+
+#define POLL_AND_LOCK_HEADER_LEN 12
+#define POLL_AND_LOCK_TYPE_LEN 2
 struct PollAndLockTaskMessage {
   short consumerId;
   long lockTime;
   short maxTasks;
 
   //task type
-  short taskTypeLength;
-  char* taskTypeVarData;
+  struct VariableData* taskType;
 };
 
 /**

@@ -53,7 +53,20 @@ int main(int argc, char** argv) {
   printf("Got server acknowledgment that task with topic %s was successfully created.\nTask has id: %ld", topic, ack->taskId);
 
 
+  n = pollAndLockTask(fileDescriptor, topic);
+  if (n < 0) {
+    perror("ERROR writing to socket");
+    return (EXIT_FAILURE);
+  }
 
+
+  serverAck = readServerAck(fileDescriptor);
+  if (serverAck == NULL) {
+    perror("ERROR reading from socket");
+    return (EXIT_FAILURE);
+  }
+  ack = (struct SingleTaskServerAckMessage*) serverAck->body->body;
+  printf("Got server acknowledgment that task with topic %s was successfully created.\nTask has id: %ld", topic, ack->taskId);
 
   return (EXIT_SUCCESS);
 }

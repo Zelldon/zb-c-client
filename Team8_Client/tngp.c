@@ -71,6 +71,15 @@ void _cleanUpTaskCreateMessage(struct TaskCreateMessage* taskCreateMessage) {
   }
 }
 
+void _cleanUpPollAndLockTaskMessage(struct PollAndLockTaskMessage* pollAndLockTaskMessage) {
+  if (pollAndLockTaskMessage != NULL) {
+    if (pollAndLockTaskMessage->taskType != NULL) {
+      free(pollAndLockTaskMessage->taskType);
+    }
+    free(pollAndLockTaskMessage);
+  }
+}
+
 /**
  * Creates a message structure, with the given message.
  *
@@ -78,7 +87,7 @@ void _cleanUpTaskCreateMessage(struct TaskCreateMessage* taskCreateMessage) {
  * @param len the length of the message
  * @return a pointer of the created message struct
  */
-struct Message* _createMessage(struct TransportProtocol* transportPortocol, int len) {
+struct Message* _createMessage(struct TransportProtocol* transportProtocol, int len) {
   // init message
   struct Message* message = malloc(sizeof (struct Message));
   if (message == NULL) {
@@ -96,15 +105,14 @@ struct Message* _createMessage(struct TransportProtocol* transportPortocol, int 
   if (message->body == NULL) {
     return message;
   }
-  memcpy(message->body, transportPortocol, len);
+  memcpy(message->body, transportProtocol, len);
 
-  int transportProtocolBodyLen = transportPortocol->bodyLen;
+  int transportProtocolBodyLen = transportProtocol->bodyLen;
   message->body->body = calloc(transportProtocolBodyLen, sizeof (char));
   if (message->body->body == NULL) {
     return message;
   }
-  memcpy(message->body->body, transportPortocol->body, transportProtocolBodyLen);
-
+  memcpy(message->body->body, transportProtocol->body, transportProtocolBodyLen);
   return message;
 }
 
@@ -132,7 +140,7 @@ int _sendMessage(int fileDescriptor, char* message, int len) {
     }
 
     writtenBytes += n;
-    printf("Write %d bytes\n", n);
+    printf("\nWrite %d bytes\n", n);
   }
 }
 
@@ -160,12 +168,17 @@ char* _createBufferFromMessage(struct Message* message, int alignedSize) {
     if (alignedSize >= MSG_HEADER_LEN + TRANS_HEADER_LEN) {
       //copy transport protocol message header
       memcpy(&buffer[MSG_HEADER_LEN], message->body, TRANS_HEADER_LEN);
-      if (message->body->resourceId == CREATE_TASK_REQUEST
+      if (message->body->templateId == CREATE_TASK_REQUEST
               && alignedSize >= MSG_HEADER_LEN + TRANS_HEADER_LEN + message->body->bodyLen) {
         //copy task create message
         char b[message->body->bodyLen];
         memcpy(b, message->body->body, message->body->bodyLen);
         memcpy(&buffer[MSG_HEADER_LEN + TRANS_HEADER_LEN], message->body->body, message->body->bodyLen);
+
+      }  else if (message->body->templateId == POLL_AND_LOCK_REQUEST
+              && alignedSize >= MSG_HEADER_LEN + TRANS_HEADER_LEN + message->body->bodyLen) {
+        memcpy(&buffer[MSG_HEADER_LEN + TRANS_HEADER_LEN], message->body->body, message->body->bodyLen);
+
       }
     }
   }
@@ -215,10 +228,24 @@ void _writeTaskCreateMessageToBody(struct TaskCreateMessage* taskCreateMsg, char
       }
     }
   }
-
 }
 
-int _initTransportProtocolBody(struct TransportProtocol* transportProtocol, struct TaskCreateMessage* taskCreateMsg) {
+void _writePollAndLockTaskMessageToBody(struct PollAndLockTaskMessage* pollAndLockTaskMessage, char* body, int bodySize) {
+  int offset = 0;
+  if (offset + POLL_AND_LOCK_HEADER_LEN < bodySize) {
+    memcpy(body, &pollAndLockTaskMessage->consumerId, POLL_AND_LOCK_HEADER_LEN);
+    offset += POLL_AND_LOCK_HEADER_LEN;
+    if (offset + POLL_AND_LOCK_TYPE_LEN < bodySize) {
+      memcpy(&body[offset], pollAndLockTaskMessage->taskType, POLL_AND_LOCK_TYPE_LEN);
+      offset += POLL_AND_LOCK_TYPE_LEN;
+      if (offset + pollAndLockTaskMessage->taskType->length <= bodySize) {
+        memcpy(&body[offset], pollAndLockTaskMessage->taskType->data, pollAndLockTaskMessage->taskType->length);
+      }
+    }
+  }
+}
+
+int _initTransportProtocolBody(struct TransportProtocol* transportProtocol, void* message) {
 
   int bodySize = transportProtocol->bodyLen;
   transportProtocol->body = calloc(bodySize, sizeof (char));
@@ -227,14 +254,16 @@ int _initTransportProtocolBody(struct TransportProtocol* transportProtocol, stru
     return -1;
   }
 
-  if (transportProtocol->resourceId == CREATE_TASK_REQUEST) {
-    _writeTaskCreateMessageToBody(taskCreateMsg, transportProtocol->body, bodySize);
+  if (transportProtocol->templateId == CREATE_TASK_REQUEST) {
+    _writeTaskCreateMessageToBody((struct TaskCreateMessage*) message, transportProtocol->body, bodySize);
+  } else if (transportProtocol->templateId == POLL_AND_LOCK_REQUEST) {
+    _writePollAndLockTaskMessageToBody((struct PollAndLockTaskMessage*) message, transportProtocol->body, bodySize);
   }
 
   return 0;
 }
 
-struct TransportProtocol* _createTransportProtocol(short resourceId) {
+struct TransportProtocol* _createTransportProtocol(short templateId) {
   struct TransportProtocol* transportProtocol = malloc(sizeof (struct TransportProtocol));
   if (transportProtocol == NULL) {
     return NULL;
@@ -245,10 +274,10 @@ struct TransportProtocol* _createTransportProtocol(short resourceId) {
 
   //init protocol
   transportProtocol->blockLength = 0;
-  transportProtocol->templateId = 0;
+  transportProtocol->templateId = templateId;
   transportProtocol->schemaId = 1;
   transportProtocol->version = 1;
-  transportProtocol->resourceId = resourceId;
+  transportProtocol->resourceId = 0;
   transportProtocol->shardId = -2; //not supported yet
   return transportProtocol;
 }
@@ -286,21 +315,6 @@ int createTask(int fileDescriptor, const char* topic) {
   taskCreateMsg->taskType = _createVariableData(topic);
   taskCreateMsg->payload = _createVariableData(NULL); //not supported yet
 
-//  if (topic == NULL) {
-//    taskCreateMsg.taskTypeVarData = NULL;
-//    taskCreateMsg.taskTypeLength = 0;
-//  } else {
-//    taskCreateMsg.taskTypeLength = strlen(topic);
-//    taskCreateMsg.taskTypeVarData = calloc(taskCreateMsg.taskTypeLength, sizeof (char));
-//    if (taskCreateMsg.taskTypeVarData == NULL) {
-//      _cleanUpTransportProtocol(transportProtocol);
-//      return -1;
-//    }
-//    memcpy(taskCreateMsg.taskTypeVarData, topic, taskCreateMsg.taskTypeLength);
-//  }
-
-//  taskCreateMsg.payloadLen = 0; //not supported yet
-//  taskCreateMsg.payloadVarData = NULL; //not supported yet
   transportProtocol->bodyLen = TASK_CREATE_HEADER_LEN + taskCreateMsg->taskType->length + taskCreateMsg->payload->length;
 
   if (_initTransportProtocolBody(transportProtocol, taskCreateMsg) < 0) {
@@ -374,5 +388,22 @@ int pollAndLockTask(int fileDescriptor, const char* taskTopic) {
   pollAndlockTaskMessage->consumerId = 0;
   pollAndlockTaskMessage->lockTime = 15 * 60 * 1000;
   pollAndlockTaskMessage->maxTasks = 1;
+  pollAndlockTaskMessage->taskType = _createVariableData(taskTopic);
+  transportProtocol->bodyLen = POLL_AND_LOCK_HEADER_LEN + POLL_AND_LOCK_TYPE_LEN + pollAndlockTaskMessage->taskType->length;
+
+
+  if (_initTransportProtocolBody(transportProtocol, pollAndlockTaskMessage) < 0) {
+    _cleanUpPollAndLockTaskMessage(pollAndlockTaskMessage);
+    _cleanUpTransportProtocol(transportProtocol);
+    return -1;
+  }
+
+  //send message
+  int result = sendMessage(fileDescriptor, transportProtocol, TRANS_HEADER_LEN + transportProtocol->bodyLen);
+
+  //clean up
+  _cleanUpPollAndLockTaskMessage(pollAndlockTaskMessage);
+  _cleanUpTransportProtocol(transportProtocol);
+  return result;
 
 }
