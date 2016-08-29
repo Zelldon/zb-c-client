@@ -103,6 +103,18 @@ struct PollAndLockTaskMessage {
   struct VariableData* taskType;
 };
 
+
+#define LOCKED_TASK_BATCH_HEADER 21
+
+struct LockedTaskBatchMessage {
+  short consumerId;
+  long lockTime;
+  short blockLength;
+  char numInGroup;
+  //prototype
+  long taskId;
+};
+
 /**
  * Connects to the server with the given parameter.
  * Uses the PORT makro for the connection port.
@@ -130,7 +142,7 @@ int sendMessage(int fileDescriptor, struct TransportProtocol* transportProtocol,
  * @return the message which was read and send by the server. The server contains the header and single task acknowledgment.
  *         NULL if something goes wrong.
  */
-struct Message* readServerAck(int fileDescriptor);
+struct Message* readCreateTaskServerAck(int fileDescriptor);
 
 /**
  * Uses the given file descriptor to send a create task message to the server.
@@ -143,6 +155,10 @@ int createTask(int fileDescriptor, const char* topic);
 
 
 int pollAndLockTask(int fileDescriptor, const char* topic);
+
+struct Message* readPollAndLockServerAck(int fileDescriptor);
+
+void cleanUpMessage(struct Message* message);
 
 #ifdef __cplusplus
 }

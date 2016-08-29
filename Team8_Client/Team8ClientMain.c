@@ -44,14 +44,14 @@ int main(int argc, char** argv) {
 
 
   //read server acknowledgment
-  struct Message* serverAck = readServerAck(fileDescriptor);
+  struct Message* serverAck = readCreateTaskServerAck(fileDescriptor);
   if (serverAck == NULL) {
     perror("ERROR reading from socket");
     return (EXIT_FAILURE);
   }
   struct SingleTaskServerAckMessage* ack = (struct SingleTaskServerAckMessage*) serverAck->body->body;
   printf("Got server acknowledgment that task with topic %s was successfully created.\nTask has id: %ld", topic, ack->taskId);
-
+  cleanUpMessage(serverAck);
 
   n = pollAndLockTask(fileDescriptor, topic);
   if (n < 0) {
@@ -59,14 +59,19 @@ int main(int argc, char** argv) {
     return (EXIT_FAILURE);
   }
 
-
-  serverAck = readServerAck(fileDescriptor);
+  serverAck = readPollAndLockServerAck(fileDescriptor);
   if (serverAck == NULL) {
     perror("ERROR reading from socket");
     return (EXIT_FAILURE);
   }
-  ack = (struct SingleTaskServerAckMessage*) serverAck->body->body;
-  printf("Got server acknowledgment that task with topic %s was successfully created.\nTask has id: %ld", topic, ack->taskId);
+  struct LockedTaskBatchMessage* lockedTaskBatchMessage = (struct LockedTaskBatchMessage*) serverAck->body->body;
+  char b[LOCKED_TASK_BATCH_HEADER];
+  memcpy(b, serverAck->body->body, LOCKED_TASK_BATCH_HEADER);
+  char id = serverAck->body->body[13];
+//  long* lockTime = (long*) &serverAck->body->body[2];
+  printf("Polled task with id %c.", id);
 
+
+  cleanUpMessage(serverAck);
   return (EXIT_SUCCESS);
 }

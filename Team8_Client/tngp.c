@@ -38,7 +38,7 @@ int connectServer(const char* host) {
   return filedescriptor;
 }
 
-void _cleanUpMessage(struct Message* message) {
+void cleanUpMessage(struct Message* message) {
   if (message != NULL) {
     if (message->body != NULL) {
       if (message->body->body != NULL) {
@@ -198,16 +198,15 @@ int sendMessage(int fileDescriptor, struct TransportProtocol* transportProtocol,
   int alignedSize = _allignedSize(bytes);
   char* buffer = _createBufferFromMessage(message, alignedSize);
   if (buffer == NULL) {
-    _cleanUpMessage(message);
+    cleanUpMessage(message);
     return -1;
   }
-
   //send message
   _sendMessage(fileDescriptor, buffer, alignedSize);
 
   //clean up
   free(buffer);
-  _cleanUpMessage(message);
+  cleanUpMessage(message);
   return 0;
 }
 
@@ -233,8 +232,17 @@ void _writeTaskCreateMessageToBody(struct TaskCreateMessage* taskCreateMsg, char
 void _writePollAndLockTaskMessageToBody(struct PollAndLockTaskMessage* pollAndLockTaskMessage, char* body, int bodySize) {
   int offset = 0;
   if (offset + POLL_AND_LOCK_HEADER_LEN < bodySize) {
-    memcpy(body, &pollAndLockTaskMessage->consumerId, POLL_AND_LOCK_HEADER_LEN);
-    offset += POLL_AND_LOCK_HEADER_LEN;
+
+    offset = 0;
+    memcpy(body, &pollAndLockTaskMessage->consumerId, sizeof(short));
+    offset += sizeof(short);
+
+    memcpy(&body[offset], &pollAndLockTaskMessage->lockTime, sizeof(long));
+    offset += sizeof(long);
+
+    memcpy(&body[offset], &pollAndLockTaskMessage->maxTasks, sizeof(short));
+    offset += sizeof(short);
+
     if (offset + POLL_AND_LOCK_TYPE_LEN < bodySize) {
       memcpy(&body[offset], pollAndLockTaskMessage->taskType, POLL_AND_LOCK_TYPE_LEN);
       offset += POLL_AND_LOCK_TYPE_LEN;
@@ -332,7 +340,7 @@ int createTask(int fileDescriptor, const char* topic) {
   return result;
 }
 
-struct Message* readServerAck(int fileDescriptor) {
+struct Message* readCreateTaskServerAck(int fileDescriptor) {
   const int ackSize = 48;
   char* buffer = calloc(ackSize, sizeof (char));
   if (buffer == NULL) {
@@ -352,7 +360,7 @@ struct Message* readServerAck(int fileDescriptor) {
 
       serverAck->body = malloc(sizeof (struct TransportProtocol));
       if (serverAck->body == NULL) {
-        _cleanUpMessage(serverAck);
+        cleanUpMessage(serverAck);
         return NULL;
       }
       memcpy(serverAck->body, &buffer[MSG_HEADER_LEN], TRANS_HEADER_LEN);
@@ -360,7 +368,7 @@ struct Message* readServerAck(int fileDescriptor) {
       if (n >= MSG_HEADER_LEN + TRANS_HEADER_LEN + SERVER_ACK_LEN) {
         serverAck->body->body = malloc(sizeof(struct SingleTaskServerAckMessage));
         if (serverAck->body->body == NULL) {
-          _cleanUpMessage(serverAck);
+          cleanUpMessage(serverAck);
           return NULL;
         }
         memcpy(serverAck->body->body, &buffer[MSG_HEADER_LEN + TRANS_HEADER_LEN], SERVER_ACK_LEN);
@@ -377,6 +385,7 @@ int pollAndLockTask(int fileDescriptor, const char* taskTopic) {
   if (transportProtocol == NULL) {
     return -1;
   }
+  transportProtocol->blockLength = POLL_AND_LOCK_HEADER_LEN;
 
 
   struct PollAndLockTaskMessage* pollAndlockTaskMessage = malloc(sizeof (struct PollAndLockTaskMessage));
@@ -406,4 +415,45 @@ int pollAndLockTask(int fileDescriptor, const char* taskTopic) {
   _cleanUpTransportProtocol(transportProtocol);
   return result;
 
+}
+
+
+struct Message* readPollAndLockServerAck(int fileDescriptor) {
+  const int ackSize = 256;
+  char* buffer = calloc(ackSize, sizeof (char));
+  if (buffer == NULL) {
+    return NULL;
+  }
+  int n = read(fileDescriptor, buffer, ackSize);
+
+
+  struct Message* serverAck = malloc(sizeof (struct Message));
+  if (serverAck == NULL) {
+    return NULL;
+  }
+
+  if (n > MSG_HEADER_LEN) {
+    memcpy(serverAck, buffer, MSG_HEADER_LEN);
+    if (n > MSG_HEADER_LEN + TRANS_HEADER_LEN) {
+
+      serverAck->body = malloc(sizeof (struct TransportProtocol));
+      if (serverAck->body == NULL) {
+        cleanUpMessage(serverAck);
+        return NULL;
+      }
+      memcpy(serverAck->body, &buffer[MSG_HEADER_LEN], TRANS_HEADER_LEN);
+
+      if (n >= MSG_HEADER_LEN + TRANS_HEADER_LEN + LOCKED_TASK_BATCH_HEADER) {
+        serverAck->body->body = malloc(sizeof(struct LockedTaskBatchMessage));
+        if (serverAck->body->body == NULL) {
+          cleanUpMessage(serverAck);
+          return NULL;
+        }
+
+        memcpy(serverAck->body->body, &buffer[MSG_HEADER_LEN + TRANS_HEADER_LEN], LOCKED_TASK_BATCH_HEADER);
+        serverAck->body->bodyLen = LOCKED_TASK_BATCH_HEADER;
+      }
+    }
+  }
+  return serverAck;
 }
