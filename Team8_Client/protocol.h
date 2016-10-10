@@ -22,11 +22,9 @@
 extern "C" {
 #endif
 
-
-//#include <sys/types.h>
 #include <stdint.h>
 #include <string.h>
-
+#include <stdlib.h>
 
 #define uint8_t unsigned char
 #define CREATE_TASK_REQUEST 0
@@ -60,9 +58,6 @@ extern "C" {
     int16_t shardId;
     //body
     int64_t bodyLen;
-    char* body;
-
-    
   };
 
   struct VariableData {
@@ -75,15 +70,19 @@ extern "C" {
 #define TASK_CREATE_HEADER_PAYLOAD_LEN 2
 
   struct TaskCreateMessage {
+    //header
+    struct Message* head;
     //task type
     struct VariableData* taskType;
     //payload
     struct VariableData* payload;
   };
 
-#define SERVER_ACK_LEN 8
+#define SERVER_ACK_LEN MSG_HEADER_LEN + TRANS_HEADER_LEN + 8 + 8
 
   struct SingleTaskServerAckMessage {
+    //header
+    struct Message* head;
     int64_t taskId;
   };
 
@@ -119,7 +118,7 @@ extern "C" {
    * @param buffer the buffer that should contain the message
    * @param message the message which should be written
    */
-  void writeMessage(uint8_t* buffer, struct Message* message);
+  uint8_t* writeMessage(uint8_t* buffer, struct Message* message);
 
   /**
    * Writes the given transport protocol into the buffer.
@@ -127,7 +126,7 @@ extern "C" {
    * @param buffer the buffer that should contain the transport protocol
    * @param transportProtocol the transport protocol which should be written
    */
-  void writeTransportProtocol(uint8_t* buffer, struct TransportProtocol* transportProtocol);
+  uint8_t* writeTransportProtocol(uint8_t* buffer, struct TransportProtocol* transportProtocol);
 
   /**
    * Writes the variable data into the buffer.
@@ -135,7 +134,9 @@ extern "C" {
    * @param buffer the buffer that should contain the variable data
    * @param data the variable data which should be written
    */
-  void writeVariableData(uint8_t* buffer, struct VariableData* data);
+  uint8_t* writeVariableData(uint8_t* buffer, struct VariableData* data);
+
+  uint8_t* writeTaskCreateMessage(uint8_t* buffer, struct TaskCreateMessage* taskCreateMessage);
 
   /**
    * Writes the poll and lock message into the buffer.
@@ -187,9 +188,9 @@ extern "C" {
 
 
 
-void readMessage(uint8_t* buffer,struct Message* serverAck);
-void readTransportProtocol(uint8_t* buffer, struct TransportProtocol* transportProtocol);
-void readSingleTaskServerAckMessage(uint8_t* buffer, struct SingleTaskServerAckMessage* ack);
+uint8_t* readMessage(uint8_t* buffer,struct Message* serverAck);
+uint8_t* readTransportProtocol(uint8_t* buffer, struct TransportProtocol* transportProtocol);
+uint8_t* readSingleTaskServerAckMessage(uint8_t* buffer, struct SingleTaskServerAckMessage* ack);
 uint8_t* deserialize_int64(uint8_t * buffer, uint64_t* value);
 uint8_t* deserialize_int32(uint8_t * buffer, int32_t* value);
 uint8_t* deserialize_int16(uint8_t * buffer, int16_t* value);

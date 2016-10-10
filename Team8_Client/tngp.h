@@ -21,17 +21,16 @@ extern "C" {
 #endif
 
 //network libs
+#include "protocol.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#include "protocol.h"
+
 //util
-#include<string.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stddef.h>
 
 
 #define PORT 51015
@@ -63,7 +62,7 @@ int32_t sendMessage(int32_t fileDescriptor, struct TransportProtocol* transportP
  * @return the message which was read and send by the server. The server contains the header and single task acknowledgment.
  *         NULL if something goes wrong.
  */
-struct Message* readCreateTaskServerAck(int32_t fileDescriptor);
+struct SingleTaskServerAckMessage* readCreateTaskServerAck(int32_t fileDescriptor);
 
 /**
  * Uses the given file descriptor to send a create task message to the server.
@@ -72,13 +71,14 @@ struct Message* readCreateTaskServerAck(int32_t fileDescriptor);
  * @param topic the topic of the task
  * @return the status of the send
  */
-int32_t createTask(int32_t fileDescriptor, const uint8_t* topic);
+struct SingleTaskServerAckMessage* createTask(int32_t fileDescriptor, const uint8_t* topic);
 
 int32_t pollAndLockTask(int32_t fileDescriptor, const uint8_t* topic);
 
 struct Message* readPollAndLockServerAck(int32_t fileDescriptor);
 
 void cleanUpMessage(struct Message* message);
+void cleanUpSingleTaskServerAckMessage(struct SingleTaskServerAckMessage* ack);
 
 #ifdef __cplusplus
 }

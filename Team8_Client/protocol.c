@@ -4,14 +4,17 @@
  * and open the template in the editor.
  */
 
-
-#include <sys/types.h>
-
 #include "protocol.h"
 
 // write ///////////////////////////////////////////////////////////////////////
 
-void writeMessage(uint8_t* buffer, struct Message* message) {
+uint8_t* writeTaskCreateMessage(uint8_t* buffer, struct TaskCreateMessage* taskCreateMessage) {
+  uint8_t* nextFreeBuff = writeMessage(buffer, taskCreateMessage->head);
+  nextFreeBuff = writeVariableData(nextFreeBuff, taskCreateMessage->taskType);
+  return writeVariableData(nextFreeBuff, taskCreateMessage->payload);
+}
+
+uint8_t* writeMessage(uint8_t* buffer, struct Message* message) {
 
   //message header
   uint8_t* nextFreeBuff = serialize_int32(buffer, message->len);
@@ -21,10 +24,10 @@ void writeMessage(uint8_t* buffer, struct Message* message) {
   nextFreeBuff = serialize_int32(nextFreeBuff, message->streamId);
 
   //body
-  writeTransportProtocol(nextFreeBuff, message->body);
+  return writeTransportProtocol(nextFreeBuff, message->body);
 }
 
-void writeTransportProtocol(uint8_t* buffer, struct TransportProtocol* transportProtocol) {
+uint8_t* writeTransportProtocol(uint8_t* buffer, struct TransportProtocol* transportProtocol) {
   //transport protocol header
   uint8_t* nextFreeBuff = serialize_int16(buffer, transportProtocol->protocolId);
   nextFreeBuff = serialize_int64(nextFreeBuff, transportProtocol->connectionId);
@@ -34,12 +37,13 @@ void writeTransportProtocol(uint8_t* buffer, struct TransportProtocol* transport
   nextFreeBuff = serialize_int16(nextFreeBuff, transportProtocol->schemaId);
   nextFreeBuff = serialize_int16(nextFreeBuff, transportProtocol->version);
   nextFreeBuff = serialize_int16(nextFreeBuff, transportProtocol->resourceId);
-  nextFreeBuff = serialize_int16(nextFreeBuff, transportProtocol->shardId);
+  return serialize_int16(nextFreeBuff, transportProtocol->shardId);
 }
 
-void writeVariableData(uint8_t* buffer, struct VariableData* data) {
+uint8_t* writeVariableData(uint8_t* buffer, struct VariableData* data) {
   uint8_t* nextFreeBuff = serialize_int16(buffer, data->length);
   memcpy(nextFreeBuff, data->data, data->length);
+  return nextFreeBuff + data->length;
 }
 
 void writePollAndLockTaskMessage(uint8_t* buffer, struct PollAndLockTaskMessage* pollAndLock) {
@@ -54,8 +58,7 @@ void writePollAndLockTaskMessage(uint8_t* buffer, struct PollAndLockTaskMessage*
 
 // read ////////////////////////////////////////////////////////////////////////
 
-void readMessage(uint8_t* buffer, struct Message* message) {
-
+uint8_t* readMessage(uint8_t* buffer, struct Message* message) {
   //message header
   uint8_t* nextFreeBuff = deserialize_int32(buffer, &message->len);
   nextFreeBuff = deserialize_int8(nextFreeBuff, &message->version);
@@ -64,10 +67,14 @@ void readMessage(uint8_t* buffer, struct Message* message) {
   nextFreeBuff = deserialize_int32(nextFreeBuff, &message->streamId);
 
   //body
-  readTransportProtocol(nextFreeBuff, message->body);
+  message->body = malloc(sizeof (struct TransportProtocol));
+  if (message->body == NULL) {
+    return NULL;
+  }
+  return readTransportProtocol(nextFreeBuff, message->body);
 }
 
-void readTransportProtocol(uint8_t* buffer, struct TransportProtocol* transportProtocol) {
+uint8_t* readTransportProtocol(uint8_t* buffer, struct TransportProtocol* transportProtocol) {
   //transport protocol header
   uint8_t* nextFreeBuff = deserialize_int16(buffer, &transportProtocol->protocolId);
   nextFreeBuff = deserialize_int64(nextFreeBuff, &transportProtocol->connectionId);
@@ -77,12 +84,18 @@ void readTransportProtocol(uint8_t* buffer, struct TransportProtocol* transportP
   nextFreeBuff = deserialize_int16(nextFreeBuff, &transportProtocol->schemaId);
   nextFreeBuff = deserialize_int16(nextFreeBuff, &transportProtocol->version);
   nextFreeBuff = deserialize_int16(nextFreeBuff, &transportProtocol->resourceId);
-  nextFreeBuff = deserialize_int16(nextFreeBuff, &transportProtocol->shardId);
+  return deserialize_int16(nextFreeBuff, &transportProtocol->shardId);
 }
 
-void readSingleTaskServerAckMessage(uint8_t* buffer, struct SingleTaskServerAckMessage* ack) {
-  deserialize_int64(buffer, &ack->taskId);
+uint8_t* readSingleTaskServerAckMessage(uint8_t* buffer, struct SingleTaskServerAckMessage* ack) {
+  ack->head = malloc(sizeof (struct Message));
+  if (ack->head == NULL) {
+    return NULL;
+  }
+  uint8_t* nextFreeBuff = readMessage(buffer, ack->head);
+  return deserialize_int64(nextFreeBuff, &ack->taskId);
 }
+
 
 // serialize ///////////////////////////////////////////////////////////////////
 
@@ -120,7 +133,7 @@ uint8_t* serialize_int8(uint8_t * buffer, int8_t value) {
 
 // deserialize /////////////////////////////////////////////////////////////////
 
-uint8_t* deserialize_int64(uint8_t * buffer, u_int64_t* value) {
+uint8_t* deserialize_int64(uint8_t * buffer, uint64_t* value) {
   *value = *((uint64_t*) buffer);
   return buffer + 8;
 }
