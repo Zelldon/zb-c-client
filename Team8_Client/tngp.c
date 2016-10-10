@@ -6,6 +6,21 @@
 
 #include "tngp.h"
 
+
+uint8_t* _readBytes(int32_t fileDescriptor, uint32_t size) {
+  uint8_t* buffer = calloc(size, sizeof (uint8_t));
+  if (buffer == NULL) {
+    return NULL;
+  }
+
+  int32_t n = read(fileDescriptor, buffer, size);
+  if (n > 0) {
+    return buffer;
+  } else {
+    return NULL;
+  }
+}
+
 /**
  * Connects to the server with the given parameter.
  * Uses the PORT makro for the connection port.
@@ -13,10 +28,10 @@
  * @param host the host for the connection
  * @return the file descriptor of the socket
  */
-int connectServer(const char* host) {
+int32_t connectServer(const uint8_t* host) {
   //Maybe we use SOCK_SEQPACKET instead
   //SOCK_STREAM will end to TCP
-  int filedescriptor = socket(AF_INET, SOCK_STREAM, 0);
+  int32_t filedescriptor = socket(AF_INET, SOCK_STREAM, 0);
   if (filedescriptor < 0) {
     return -1;
   }
@@ -30,7 +45,7 @@ int connectServer(const char* host) {
   memset(&serv_addr, 0, sizeof (serv_addr));
   serv_addr.sin_port = htons(PORT);
   serv_addr.sin_family = AF_INET;
-  memcpy((char*) &serv_addr.sin_addr.s_addr, server->h_addr_list[0], sizeof (server->h_addr_list[0]));
+  memcpy((uint8_t*) &serv_addr.sin_addr.s_addr, server->h_addr_list[0], sizeof (server->h_addr_list[0]));
 
   if (connect(filedescriptor, (struct sockaddr*) &serv_addr, sizeof (serv_addr)) < 0) {
     return -1;
@@ -87,7 +102,7 @@ void _cleanUpPollAndLockTaskMessage(struct PollAndLockTaskMessage* pollAndLockTa
  * @param len the length of the message
  * @return a pointer of the created message struct
  */
-struct Message* _createMessage(struct TransportProtocol* transportProtocol, int len) {
+struct Message* _createMessage(struct TransportProtocol* transportProtocol, int32_t len) {
   // init message
   struct Message* message = malloc(sizeof (struct Message));
   if (message == NULL) {
@@ -100,15 +115,15 @@ struct Message* _createMessage(struct TransportProtocol* transportProtocol, int 
   message->type = 0; //htons(4);
   message->streamId = 1; //htonl(1);
 
-  //copy transport protocol message into body
+  //copy transport protocol message int32_to body
   message->body = malloc(sizeof (struct TransportProtocol));
   if (message->body == NULL) {
     return message;
   }
   memcpy(message->body, transportProtocol, len);
 
-  int transportProtocolBodyLen = transportProtocol->bodyLen;
-  message->body->body = calloc(transportProtocolBodyLen, sizeof (char));
+  int32_t transportProtocolBodyLen = transportProtocol->bodyLen;
+  message->body->body = calloc(transportProtocolBodyLen, sizeof (uint8_t));
   if (message->body->body == NULL) {
     return message;
   }
@@ -124,8 +139,8 @@ struct Message* _createMessage(struct TransportProtocol* transportProtocol, int 
  * @param len the length of the hole message
  * @return the status of the send
  */
-int _sendMessage(int fileDescriptor, char* message, int len) {
-  int writtenBytes = 0;
+int32_t _sendMessage(int32_t fileDescriptor, uint8_t* message, int32_t len) {
+  int32_t writtenBytes = 0;
   while (writtenBytes < len) {
 
     if (writtenBytes != 0 && lseek(fileDescriptor, writtenBytes, SEEK_SET) < 0) {
@@ -133,7 +148,7 @@ int _sendMessage(int fileDescriptor, char* message, int len) {
       return -1;
     }
 
-    int n = write(fileDescriptor, message, len);
+    int32_t n = write(fileDescriptor, message, len);
     if (n <= 0) {
       puts("Write failed!");
       return -1;
@@ -150,13 +165,13 @@ int _sendMessage(int fileDescriptor, char* message, int len) {
  * @param size the size which should be aligned
  * @return the aligned size
  */
-int _allignedSize(int size) {
+int32_t _allignedSize(int32_t size) {
   return (size + (8 - 1)) & ~(8 - 1);
 }
 
-char* _createBufferFromMessage(struct Message* message, int alignedSize) {
+uint8_t* _createBufferFromMessage(struct Message* message, int32_t alignedSize) {
   //create buffer
-  char* buffer = calloc(alignedSize, sizeof (char));
+  uint8_t* buffer = calloc(alignedSize, sizeof (uint8_t));
   if (buffer == NULL) {
     return buffer;
   }
@@ -164,18 +179,18 @@ char* _createBufferFromMessage(struct Message* message, int alignedSize) {
   //copy values
   if (alignedSize >= MSG_HEADER_LEN) {
     //copy message header
-    memcpy(buffer, (char*) message, MSG_HEADER_LEN);
+    memcpy(buffer, (uint8_t*) message, MSG_HEADER_LEN);
     if (alignedSize >= MSG_HEADER_LEN + TRANS_HEADER_LEN) {
       //copy transport protocol message header
       memcpy(&buffer[MSG_HEADER_LEN], message->body, TRANS_HEADER_LEN);
       if (message->body->templateId == CREATE_TASK_REQUEST
               && alignedSize >= MSG_HEADER_LEN + TRANS_HEADER_LEN + message->body->bodyLen) {
         //copy task create message
-        char b[message->body->bodyLen];
+        uint8_t b[message->body->bodyLen];
         memcpy(b, message->body->body, message->body->bodyLen);
         memcpy(&buffer[MSG_HEADER_LEN + TRANS_HEADER_LEN], message->body->body, message->body->bodyLen);
 
-      }  else if (message->body->templateId == POLL_AND_LOCK_REQUEST
+      } else if (message->body->templateId == POLL_AND_LOCK_REQUEST
               && alignedSize >= MSG_HEADER_LEN + TRANS_HEADER_LEN + message->body->bodyLen) {
         memcpy(&buffer[MSG_HEADER_LEN + TRANS_HEADER_LEN], message->body->body, message->body->bodyLen);
 
@@ -186,17 +201,17 @@ char* _createBufferFromMessage(struct Message* message, int alignedSize) {
   return buffer;
 }
 
-int sendMessage(int fileDescriptor, struct TransportProtocol* transportProtocol, int len) {
+int32_t sendMessage(int32_t fileDescriptor, struct TransportProtocol* transportProtocol, int32_t len) {
 
   struct Message* message = _createMessage(transportProtocol, len);
   if (message == NULL) {
     return -1;
   }
 
-  int bytes = MSG_HEADER_LEN + len;
+  int32_t bytes = MSG_HEADER_LEN + len;
   //we need buffer aligned to 8 divid
-  int alignedSize = _allignedSize(bytes);
-  char* buffer = _createBufferFromMessage(message, alignedSize);
+  int32_t alignedSize = _allignedSize(bytes);
+  uint8_t* buffer = _createBufferFromMessage(message, alignedSize);
   if (buffer == NULL) {
     cleanUpMessage(message);
     return -1;
@@ -210,8 +225,8 @@ int sendMessage(int fileDescriptor, struct TransportProtocol* transportProtocol,
   return 0;
 }
 
-void _writeTaskCreateMessageToBody(struct TaskCreateMessage* taskCreateMsg, char* body, int bodySize) {
-  int offset = 0;
+void _writeTaskCreateMessageToBody(struct TaskCreateMessage* taskCreateMsg, uint8_t* body, int32_t bodySize) {
+  int32_t offset = 0;
   if (offset + TASK_CREATE_HEADER_TYPE_LEN < bodySize) {
     memcpy(body, &taskCreateMsg->taskType->length, TASK_CREATE_HEADER_TYPE_LEN);
     offset += TASK_CREATE_HEADER_TYPE_LEN;
@@ -229,19 +244,19 @@ void _writeTaskCreateMessageToBody(struct TaskCreateMessage* taskCreateMsg, char
   }
 }
 
-void _writePollAndLockTaskMessageToBody(struct PollAndLockTaskMessage* pollAndLockTaskMessage, char* body, int bodySize) {
-  int offset = 0;
+void _writePollAndLockTaskMessageToBody(struct PollAndLockTaskMessage* pollAndLockTaskMessage, uint8_t* body, int32_t bodySize) {
+  int32_t offset = 0;
   if (offset + POLL_AND_LOCK_HEADER_LEN < bodySize) {
 
     offset = 0;
-    memcpy(body, &pollAndLockTaskMessage->consumerId, sizeof(short));
-    offset += sizeof(short);
+    memcpy(body, &pollAndLockTaskMessage->consumerId, sizeof (short));
+    offset += sizeof (short);
 
-    memcpy(&body[offset], &pollAndLockTaskMessage->lockTime, sizeof(long));
-    offset += sizeof(long);
+    memcpy(&body[offset], &pollAndLockTaskMessage->lockTime, sizeof (long));
+    offset += sizeof (long);
 
-    memcpy(&body[offset], &pollAndLockTaskMessage->maxTasks, sizeof(short));
-    offset += sizeof(short);
+    memcpy(&body[offset], &pollAndLockTaskMessage->maxTasks, sizeof (short));
+    offset += sizeof (short);
 
     if (offset + POLL_AND_LOCK_TYPE_LEN < bodySize) {
       memcpy(&body[offset], pollAndLockTaskMessage->taskType, POLL_AND_LOCK_TYPE_LEN);
@@ -253,10 +268,10 @@ void _writePollAndLockTaskMessageToBody(struct PollAndLockTaskMessage* pollAndLo
   }
 }
 
-int _initTransportProtocolBody(struct TransportProtocol* transportProtocol, void* message) {
+int32_t _initTransportProtocolBody(struct TransportProtocol* transportProtocol, void* message) {
 
-  int bodySize = transportProtocol->bodyLen;
-  transportProtocol->body = calloc(bodySize, sizeof (char));
+  int32_t bodySize = transportProtocol->bodyLen;
+  transportProtocol->body = calloc(bodySize, sizeof (uint8_t));
   if (transportProtocol->body == NULL) {
     _cleanUpTransportProtocol(transportProtocol);
     return -1;
@@ -277,6 +292,7 @@ struct TransportProtocol* _createTransportProtocol(short templateId) {
     return NULL;
   }
   //generated by the client
+  transportProtocol->protocolId = 0;
   transportProtocol->connectionId = 2562132L;
   transportProtocol->requestId = 2551312L;
 
@@ -290,7 +306,7 @@ struct TransportProtocol* _createTransportProtocol(short templateId) {
   return transportProtocol;
 }
 
-struct VariableData* _createVariableData(const char* data) {
+struct VariableData* _createVariableData(const uint8_t* data) {
   struct VariableData* variableData = malloc(sizeof (struct VariableData));
   if (variableData == NULL) {
     return NULL;
@@ -301,7 +317,7 @@ struct VariableData* _createVariableData(const char* data) {
     variableData->length = 0;
   } else {
     variableData->length = strlen(data);
-    variableData->data = calloc(variableData->length, sizeof (char));
+    variableData->data = calloc(variableData->length, sizeof (uint8_t));
     if (variableData->data == NULL) {
       return NULL;
     }
@@ -310,7 +326,7 @@ struct VariableData* _createVariableData(const char* data) {
   return variableData;
 }
 
-int createTask(int fileDescriptor, const char* topic) {
+int32_t createTask(int32_t fileDescriptor, const uint8_t* topic) {
   struct TransportProtocol* transportProtocol = _createTransportProtocol(CREATE_TASK_REQUEST);
   if (transportProtocol == NULL) {
     return -1;
@@ -318,12 +334,15 @@ int createTask(int fileDescriptor, const char* topic) {
   //init create message
   struct TaskCreateMessage* taskCreateMsg = malloc(sizeof (struct TaskCreateMessage));
   if (taskCreateMsg == NULL) {
+    _cleanUpTransportProtocol(transportProtocol);
     return -1;
   }
   taskCreateMsg->taskType = _createVariableData(topic);
   taskCreateMsg->payload = _createVariableData(NULL); //not supported yet
 
-  transportProtocol->bodyLen = TASK_CREATE_HEADER_LEN + taskCreateMsg->taskType->length + taskCreateMsg->payload->length;
+  transportProtocol->bodyLen = TASK_CREATE_HEADER_LEN
+                             + taskCreateMsg->taskType->length
+                             + taskCreateMsg->payload->length;
 
   if (_initTransportProtocolBody(transportProtocol, taskCreateMsg) < 0) {
     _cleanUpTaskCreateMessage(taskCreateMsg);
@@ -331,8 +350,37 @@ int createTask(int fileDescriptor, const char* topic) {
     return -1;
   }
 
+  int32_t len = TRANS_HEADER_LEN + transportProtocol->bodyLen;
+  struct Message* message = _createMessage(transportProtocol, len);
+  if (message == NULL) {
+    return -1;
+  }
+
+  int32_t bytes = MSG_HEADER_LEN + len;
+  //we need buffer aligned to 8 divid
+  int32_t alignedSize = _allignedSize(bytes);
+
+
+  uint8_t* buffer = calloc(alignedSize, sizeof (uint8_t));
+  if (buffer == NULL) {
+    return -1;
+  }
+
+  writeMessage(buffer, message);
+  writeVariableData(&buffer[MSG_HEADER_LEN + TRANS_HEADER_LEN], taskCreateMsg->taskType);
+  writeVariableData(&buffer[MSG_HEADER_LEN + TRANS_HEADER_LEN + TASK_CREATE_HEADER_TYPE_LEN + taskCreateMsg->taskType->length], taskCreateMsg->payload);
+
+
+  uint8_t b[alignedSize];
+  memcpy(b, buffer, alignedSize);
   //send message
-  int result = sendMessage(fileDescriptor, transportProtocol, TRANS_HEADER_LEN + transportProtocol->bodyLen);
+  int32_t result = _sendMessage(fileDescriptor, buffer, alignedSize);
+
+  //clean up
+  free(buffer);
+  cleanUpMessage(message);
+  //send message
+  //  int32_t result = sendMessage(fileDescriptor, transportProtocol, TRANS_HEADER_LEN + transportProtocol->bodyLen);
 
   //clean up
   _cleanUpTaskCreateMessage(taskCreateMsg);
@@ -340,47 +388,42 @@ int createTask(int fileDescriptor, const char* topic) {
   return result;
 }
 
-struct Message* readCreateTaskServerAck(int fileDescriptor) {
-  const int ackSize = 48;
-  char* buffer = calloc(ackSize, sizeof (char));
+struct Message* readCreateTaskServerAck(int32_t fileDescriptor) {
+  const int32_t ackSize = 56;
+  uint8_t* buffer = _readBytes(fileDescriptor, ackSize);
   if (buffer == NULL) {
     return NULL;
   }
-  int n = read(fileDescriptor, buffer, ackSize);
-
 
   struct Message* serverAck = malloc(sizeof (struct Message));
   if (serverAck == NULL) {
     return NULL;
   }
 
-  if (n > MSG_HEADER_LEN) {
-    memcpy(serverAck, buffer, MSG_HEADER_LEN);
-    if (n > MSG_HEADER_LEN + TRANS_HEADER_LEN) {
-
-      serverAck->body = malloc(sizeof (struct TransportProtocol));
-      if (serverAck->body == NULL) {
-        cleanUpMessage(serverAck);
-        return NULL;
-      }
-      memcpy(serverAck->body, &buffer[MSG_HEADER_LEN], TRANS_HEADER_LEN);
-
-      if (n >= MSG_HEADER_LEN + TRANS_HEADER_LEN + SERVER_ACK_LEN) {
-        serverAck->body->body = malloc(sizeof(struct SingleTaskServerAckMessage));
-        if (serverAck->body->body == NULL) {
-          cleanUpMessage(serverAck);
-          return NULL;
-        }
-        memcpy(serverAck->body->body, &buffer[MSG_HEADER_LEN + TRANS_HEADER_LEN], SERVER_ACK_LEN);
-        serverAck->body->bodyLen = SERVER_ACK_LEN;
-      }
-    }
+  serverAck->body = malloc(sizeof (struct TransportProtocol));
+  if (serverAck->body == NULL) {
+    cleanUpMessage(serverAck);
+    return NULL;
   }
+
+  readMessage(buffer, serverAck);
+
+  serverAck->body->body = calloc(serverAck->body->bodyLen, sizeof (uint8_t));
+  if (serverAck->body->body == NULL) {
+    cleanUpMessage(serverAck);
+    return NULL;
+  }
+  struct SingleTaskServerAckMessage* ack = malloc(sizeof (struct SingleTaskServerAckMessage));
+  if (ack == NULL) {
+    cleanUpMessage(serverAck);
+    return NULL;
+  }
+  readSingleTaskServerAckMessage(&buffer[MSG_HEADER_LEN + TRANS_HEADER_LEN], ack);
+
   return serverAck;
 }
 
-
-int pollAndLockTask(int fileDescriptor, const char* taskTopic) {
+int32_t pollAndLockTask(int32_t fileDescriptor, const uint8_t* taskTopic) {
   struct TransportProtocol* transportProtocol = _createTransportProtocol(POLL_AND_LOCK_REQUEST);
   if (transportProtocol == NULL) {
     return -1;
@@ -408,7 +451,7 @@ int pollAndLockTask(int fileDescriptor, const char* taskTopic) {
   }
 
   //send message
-  int result = sendMessage(fileDescriptor, transportProtocol, TRANS_HEADER_LEN + transportProtocol->bodyLen);
+  int32_t result = sendMessage(fileDescriptor, transportProtocol, TRANS_HEADER_LEN + transportProtocol->bodyLen);
 
   //clean up
   _cleanUpPollAndLockTaskMessage(pollAndlockTaskMessage);
@@ -417,14 +460,13 @@ int pollAndLockTask(int fileDescriptor, const char* taskTopic) {
 
 }
 
-
-struct Message* readPollAndLockServerAck(int fileDescriptor) {
-  const int ackSize = 256;
-  char* buffer = calloc(ackSize, sizeof (char));
+struct Message* readPollAndLockServerAck(int32_t fileDescriptor) {
+  const int32_t ackSize = 256;
+  uint8_t* buffer = calloc(ackSize, sizeof (uint8_t));
   if (buffer == NULL) {
     return NULL;
   }
-  int n = read(fileDescriptor, buffer, ackSize);
+  int32_t n = read(fileDescriptor, buffer, ackSize);
 
 
   struct Message* serverAck = malloc(sizeof (struct Message));
@@ -444,7 +486,7 @@ struct Message* readPollAndLockServerAck(int fileDescriptor) {
       memcpy(serverAck->body, &buffer[MSG_HEADER_LEN], TRANS_HEADER_LEN);
 
       if (n >= MSG_HEADER_LEN + TRANS_HEADER_LEN + LOCKED_TASK_BATCH_HEADER) {
-        serverAck->body->body = malloc(sizeof(struct LockedTaskBatchMessage));
+        serverAck->body->body = malloc(sizeof (struct LockedTaskBatchMessage));
         if (serverAck->body->body == NULL) {
           cleanUpMessage(serverAck);
           return NULL;

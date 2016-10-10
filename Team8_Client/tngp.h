@@ -25,6 +25,7 @@ extern "C" {
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include "protocol.h"
 //util
 #include<string.h>
 #include <unistd.h>
@@ -32,88 +33,8 @@ extern "C" {
 #include <stdlib.h>
 #include <stddef.h>
 
-#define CREATE_TASK_REQUEST 0
-#define POLL_AND_LOCK_REQUEST 1
 
 #define PORT 51015
-
-#define MSG_HEADER_LEN 12
-
-struct Message {
-  //head
-  int len;
-  char version;
-  char flags;
-  short type;
-  int streamId;
-  //body
-  struct TransportProtocol* body;
-};
-
-#define TRANS_HEADER_LEN 28
-
-struct TransportProtocol {
-  long connectionId;
-  long requestId;
-
-  //header
-  short blockLength;
-  short templateId;
-  short schemaId;
-  short version;
-  short resourceId;
-  short shardId;
-  //body
-  long bodyLen;
-  char* body;
-};
-
-
-struct VariableData {
-  short length;
-  char* data;
-};
-
-#define TASK_CREATE_HEADER_LEN TASK_CREATE_HEADER_TYPE_LEN + TASK_CREATE_HEADER_PAYLOAD_LEN
-#define TASK_CREATE_HEADER_TYPE_LEN 2
-#define TASK_CREATE_HEADER_PAYLOAD_LEN 2
-
-struct TaskCreateMessage {
-  //task type
-  struct VariableData* taskType;
-  //payload
-  struct VariableData* payload;
-};
-
-#define SERVER_ACK_LEN 8
-
-struct SingleTaskServerAckMessage {
-  long taskId;
-};
-
-
-#define POLL_AND_LOCK_HEADER_LEN 12
-#define POLL_AND_LOCK_TYPE_LEN 2
-struct PollAndLockTaskMessage {
-  short consumerId;
-  long lockTime;
-  short maxTasks;
-
-  //task type
-  struct VariableData* taskType;
-};
-
-
-#define LOCKED_TASK_BATCH_HEADER 21
-
-struct LockedTaskBatchMessage {
-  short consumerId;
-  long lockTime;
-  short blockLength;
-  char numInGroup;
-  //prototype
-  long taskId;
-};
 
 /**
  * Connects to the server with the given parameter.
@@ -122,7 +43,7 @@ struct LockedTaskBatchMessage {
  * @param host the host for the connection
  * @return the file descriptor of the socket
  */
-int connectServer(const char* host);
+int32_t connectServer(const uint8_t* host);
 
 /**
  * Sends the transport protocol message to the connected server, with help of the file descriptor.
@@ -132,7 +53,7 @@ int connectServer(const char* host);
  * @param len the length of the hole message
  * @return the status of the send
  */
-int sendMessage(int fileDescriptor, struct TransportProtocol* transportProtocol, int len);
+int32_t sendMessage(int32_t fileDescriptor, struct TransportProtocol* transportProtocol, int32_t len);
 
 
 /**
@@ -142,7 +63,7 @@ int sendMessage(int fileDescriptor, struct TransportProtocol* transportProtocol,
  * @return the message which was read and send by the server. The server contains the header and single task acknowledgment.
  *         NULL if something goes wrong.
  */
-struct Message* readCreateTaskServerAck(int fileDescriptor);
+struct Message* readCreateTaskServerAck(int32_t fileDescriptor);
 
 /**
  * Uses the given file descriptor to send a create task message to the server.
@@ -151,12 +72,11 @@ struct Message* readCreateTaskServerAck(int fileDescriptor);
  * @param topic the topic of the task
  * @return the status of the send
  */
-int createTask(int fileDescriptor, const char* topic);
+int32_t createTask(int32_t fileDescriptor, const uint8_t* topic);
 
+int32_t pollAndLockTask(int32_t fileDescriptor, const uint8_t* topic);
 
-int pollAndLockTask(int fileDescriptor, const char* topic);
-
-struct Message* readPollAndLockServerAck(int fileDescriptor);
+struct Message* readPollAndLockServerAck(int32_t fileDescriptor);
 
 void cleanUpMessage(struct Message* message);
 
