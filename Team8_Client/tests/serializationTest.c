@@ -26,61 +26,101 @@ int clean_suite(void) {
 // serialize ///////////////////////////////////////////////////////////////////
 
 void testSerialize_int64() {
+  //given
   uint8_t buffer[8] = {0, 0, 0, 0, 0, 0, 0, 0};
   int64_t value = (int64_t) powf(256, 7);
+
+  //when
   serialize_int64(buffer, value);
+
+  //then
   CU_ASSERT_EQUAL(1, buffer[7]);
 }
 
 void testSerialize_int32() {
+  //given
   uint8_t buffer[4] = {0, 0, 0, 0};
   int32_t value = (int64_t) powf(256, 3);
+
+  //when
   serialize_int32(buffer, value);
+
+  //then
   CU_ASSERT_EQUAL(1, buffer[3]);
 }
 
 void testSerialize_int16() {
+  //given
   uint8_t buffer[2] = {0, 0};
   int16_t value = 256;
+
+  //when
   serialize_int16(buffer, value);
+
+  //then
   CU_ASSERT_EQUAL(1, buffer[1]);
 }
 
 void testSerialize_int8() {
+  //given
   uint8_t buffer[1] = {0};
   int8_t value = 255;
+
+  //when
   serialize_int8(buffer, value);
+
+  //then
   CU_ASSERT_EQUAL(255, buffer[0]);
 }
 
 // deserialize /////////////////////////////////////////////////////////////////
 
 void testDeserialize_int64() {
+  //given
   uint8_t buffer[8] = {0, 0, 0, 0, 0, 0, 0, 1};
   int64_t value;
+
+  //when
   deserialize_int64(buffer, &value);
+
+  //then
   CU_ASSERT_EQUAL((int64_t) powf(256, 7), value);
 }
 
 
 void testDeserialize_int32() {
+  //given
   uint8_t buffer[4] = {0, 0, 0, 1};
   int32_t value;
+
+  //when
   deserialize_int32(buffer, &value);
+
+  //then
   CU_ASSERT_EQUAL((int32_t) powf(256, 3), value);
 }
 
 void testDeserialize_int16() {
+  //given
   uint8_t buffer[2] = {0, 1};
   int16_t value;
+
+  //when
   deserialize_int16(buffer, &value);
+
+  //then
   CU_ASSERT_EQUAL(256, value);
 }
 
 void testDeserialize_int8() {
+  //given
   uint8_t buffer[1] = {255};
   uint8_t value;
+
+  //when
   deserialize_int8(buffer, &value);
+
+  //then
   CU_ASSERT_EQUAL(255, value);
 }
 
