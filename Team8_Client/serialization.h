@@ -78,7 +78,7 @@ extern "C" {
    * @param value the pointer to the variable on which the value should be written
    * @return the next place in the buffer
    */
-  uint8_t* deserialize_int64(uint8_t * buffer, uint64_t* value);
+  uint8_t* deserialize_int64(uint8_t * buffer, int64_t* value);
 
   /**
    * Deserializes an int32_t value from the given buffer.

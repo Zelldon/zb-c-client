@@ -51,25 +51,23 @@ uint8_t* serialize_int8(uint8_t * buffer, int8_t value) {
 
 // deserialize /////////////////////////////////////////////////////////////////
 
-uint8_t* deserialize_int64(uint8_t * buffer, uint64_t* value) {
-  *value = *((uint64_t*) buffer);
+uint8_t* deserialize_int64(uint8_t * buffer, int64_t* value) {
+  *value = *((int64_t*) buffer);
   return buffer + 8;
 }
 
 uint8_t* deserialize_int32(uint8_t * buffer, int32_t* value) {
-  char b[4];
-  memcpy(b, buffer, 4);
   *value = 0;
-  *value |= buffer[3] >> 24;
-  *value |= buffer[2] >> 16;
-  *value |= buffer[1] >> 8;
+  *value |= buffer[3] << 24;
+  *value |= buffer[2] << 16;
+  *value |= buffer[1] << 8;
   *value |= buffer[0];
   return buffer + 4;
 }
 
 uint8_t* deserialize_int16(uint8_t * buffer, int16_t* value) {
   *value = 0;
-  *value |= buffer[1] >> 8;
+  *value |= buffer[1] << 8;
   *value |= buffer[0];
   return buffer + 2;
 }
