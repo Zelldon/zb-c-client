@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #include "serialization.h"
+
 // serialize ///////////////////////////////////////////////////////////////////
 
 uint8_t* serialize_int64(uint8_t * buffer, int64_t value) {

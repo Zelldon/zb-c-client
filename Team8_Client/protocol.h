@@ -33,11 +33,15 @@ extern "C" {
 #include <stdlib.h>
 #include "serialization.h"
 
-#define uint8_t unsigned char
 #define CREATE_TASK_REQUEST 0
 #define POLL_AND_LOCK_REQUEST 1
+  
 #define MSG_HEADER_LEN 12
 
+  /**
+   * Defines the main component with all necessary headers,
+   * to communicate with the broker.
+   */
   struct Message {
     //head
     int32_t len;
@@ -51,6 +55,9 @@ extern "C" {
 
 #define TRANS_HEADER_LEN 30
 
+  /**
+   * Defines the transport protocol with all necessary headers.
+   */
   struct TransportProtocol {
     int16_t protocolId;
     int64_t connectionId;
@@ -67,6 +74,9 @@ extern "C" {
     int64_t bodyLen;
   };
 
+  /**
+   * Defines the structure of variable data.
+   */
   struct VariableData {
     int16_t length;
     char* data;
@@ -76,6 +86,9 @@ extern "C" {
 #define TASK_CREATE_HEADER_TYPE_LEN 2
 #define TASK_CREATE_HEADER_PAYLOAD_LEN 2
 
+  /**
+   * Defines the message to create a task.
+   */
   struct TaskCreateMessage {
     //header
     struct Message* head;
@@ -87,6 +100,10 @@ extern "C" {
 
 #define SERVER_ACK_LEN MSG_HEADER_LEN + TRANS_HEADER_LEN + 8 + 8
 
+  /**
+   * Defines the acknowledgment of the broker which is send after
+   * a task is created.
+   */
   struct SingleTaskServerAckMessage {
     //header
     struct Message* head;
@@ -97,6 +114,9 @@ extern "C" {
 #define POLL_AND_LOCK_HEADER_LEN 12
 #define POLL_AND_LOCK_TYPE_LEN 2
 
+  /**
+   * Defines the message to poll and lock an existing task.
+   */
   struct PollAndLockTaskMessage {
     int16_t consumerId;
     int64_t lockTime;
@@ -109,6 +129,10 @@ extern "C" {
 
 #define LOCKED_TASK_BATCH_HEADER 21
 
+  /**
+   * Defines the response of the broker which is send after
+   * a task is polled and locked.
+   */
   struct LockedTaskBatchMessage {
     int16_t consumerId;
     int64_t lockTime;
@@ -124,6 +148,7 @@ extern "C" {
    *
    * @param buffer the buffer that should contain the message
    * @param message the message which should be written
+   * @return the pointer which points on the next space in the buffer
    */
   uint8_t* writeMessage(uint8_t* buffer, struct Message* message);
 
@@ -132,6 +157,7 @@ extern "C" {
    *
    * @param buffer the buffer that should contain the transport protocol
    * @param transportProtocol the transport protocol which should be written
+   * @return the pointer which points on the next space in the buffer
    */
   uint8_t* writeTransportProtocol(uint8_t* buffer, struct TransportProtocol* transportProtocol);
 
@@ -140,9 +166,17 @@ extern "C" {
    *
    * @param buffer the buffer that should contain the variable data
    * @param data the variable data which should be written
+   * @return the pointer which points on the next space in the buffer
    */
   uint8_t* writeVariableData(uint8_t* buffer, struct VariableData* data);
 
+  /**
+   * Writes the task creation message into the buffer.
+   *
+   * @param buffer the buffer that should contain the task creation message
+   * @param taskCreateMessage the task creation message which should be written
+   * @return the pointer which points on the next space in the buffer
+   */
   uint8_t* writeTaskCreateMessage(uint8_t* buffer, struct TaskCreateMessage* taskCreateMessage);
 
   /**
@@ -154,10 +188,38 @@ extern "C" {
   void writePollAndLockTaskMessage(uint8_t* buffer, struct PollAndLockTaskMessage* pollAndLock);
 
 
+  /**
+   * Reads the message from the buffer and
+   * writes into the structure on which the pointer points to.
+   *
+   * @param buffer the buffer that contain the message
+   * @param message the pointer which points to the message structure
+   * @return the pointer which points to the next place in the buffer
+   */
+  uint8_t* readMessage(uint8_t* buffer, struct Message* message);
 
-uint8_t* readMessage(uint8_t* buffer,struct Message* serverAck);
-uint8_t* readTransportProtocol(uint8_t* buffer, struct TransportProtocol* transportProtocol);
-uint8_t* readSingleTaskServerAckMessage(uint8_t* buffer, struct SingleTaskServerAckMessage* ack);
+  /**
+   *
+   * Reads the transport protocol from the buffer and
+   * writes into the structure on which the pointer points to.
+   *
+   * @param buffer the buffer that contain the transport protocol
+   * @param transportProtocol the pointer which points to the transport protocol structure
+   * @return the pointer which points to the next place in the buffer
+   */
+  uint8_t* readTransportProtocol(uint8_t* buffer, struct TransportProtocol* transportProtocol);
+
+  /**
+   *
+   * Reads the acknowledge message from the buffer and
+   * writes into the structure on which the pointer points to.
+   *
+   * @param buffer the buffer that contain the transport protocol
+   * @param ack the pointer which points to the acknowledge message structure
+   * @return the pointer which points to the next place in the buffer
+   */
+  uint8_t* readSingleTaskServerAckMessage(uint8_t* buffer, struct SingleTaskServerAckMessage* ack);
+
 #ifdef __cplusplus
 }
 #endif
