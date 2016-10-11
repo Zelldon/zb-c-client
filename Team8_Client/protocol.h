@@ -1,13 +1,21 @@
 /*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+ * Copyright 2016 Christopher Zell <christopher.zell@camunda.com>.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 /*
- * Defines the tngp protocol and some util classes to serialize and
- * deserialize values to and from bytes. Admit that int32_t is 4 bytes.
- * Uses little endian for serialization.
+ * Defines the tngp protocol and
  *
  * File:   protocol.h
  * Author: Christopher Zell <christopher.zell@camunda.com>
@@ -22,9 +30,8 @@
 extern "C" {
 #endif
 
-#include <stdint.h>
-#include <string.h>
 #include <stdlib.h>
+#include "serialization.h"
 
 #define uint8_t unsigned char
 #define CREATE_TASK_REQUEST 0
@@ -146,56 +153,11 @@ extern "C" {
    */
   void writePollAndLockTaskMessage(uint8_t* buffer, struct PollAndLockTaskMessage* pollAndLock);
 
-  /**
-   * Serializes a int64_t value, as little endian, into the given buffer.
-   * Long is expected as 8 byte value.
-   *
-   * @param buffer the buffer which should contain the value
-   * @param value the value which should be written
-   * @return the next free space in the buffer
-   */
-  uint8_t* serialize_int64(uint8_t * buffer, int64_t value);
-
-  /**
-   * Serializes a int32_t value, as little endian, into the given buffer.
-   * Integer is expected as 4 byte value.
-   *
-   * @param buffer the buffer which should contain the value
-   * @param value the value which should be written
-   * @return the next free space in the buffer
-   */
-  uint8_t* serialize_int32(uint8_t * buffer, int32_t value);
-
-  /**
-   * Serializes a int16_t value, as little endian, into the given buffer.
-   * Short is expected as 2 byte value.
-   *
-   * @param buffer the buffer which should contain the value
-   * @param value the value which should be written
-   * @return the next free space in the buffer
-   */
-  uint8_t* serialize_int16(uint8_t * buffer, int16_t value);
-
-  /**
-   * Serializes a int8_t value into the given buffer.
-   * Char is expected as 1 byte value.
-   *
-   * @param buffer the buffer which should contain the value
-   * @param value the value which should be written
-   * @return the next free space in the buffer
-   */
-  uint8_t* serialize_int8(uint8_t * buffer, int8_t value);
-
 
 
 uint8_t* readMessage(uint8_t* buffer,struct Message* serverAck);
 uint8_t* readTransportProtocol(uint8_t* buffer, struct TransportProtocol* transportProtocol);
 uint8_t* readSingleTaskServerAckMessage(uint8_t* buffer, struct SingleTaskServerAckMessage* ack);
-uint8_t* deserialize_int64(uint8_t * buffer, uint64_t* value);
-uint8_t* deserialize_int32(uint8_t * buffer, int32_t* value);
-uint8_t* deserialize_int16(uint8_t * buffer, int16_t* value);
-uint8_t* deserialize_int8(uint8_t * buffer, uint8_t* value);
-
 #ifdef __cplusplus
 }
 #endif
