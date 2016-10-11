@@ -65,7 +65,43 @@ int32_t _sendBytes(int32_t fileDescriptor, uint8_t* message, int32_t len) {
   }
 }
 
+/**
+ * Returns next aligned size. The returned size is completely divisible with 8.
+ *
+ * @param size the size which should be aligned
+ * @return the aligned size
+ */
+int32_t _allignedSize(int32_t size) {
+  return (size + (8 - 1)) & ~(8 - 1);
+}
 
+
+/**
+ * Reads the acknowledgment of the server that a task was created,
+ *
+ * @param fileDescriptor the file descriptor of the connected socket
+ * @return the message which was read and send by the server. The server contains the header and single task acknowledgment.
+ *         NULL if something goes wrong.
+ */
+struct SingleTaskServerAckMessage* _readCreateTaskServerAck(int32_t fileDescriptor) {
+  //read acknowledgment
+  const int32_t ackSize = 56;
+  uint8_t* buffer = _readBytes(fileDescriptor, ackSize);
+  if (buffer == NULL) {
+    return NULL;
+  }
+  //allocate space for acknowledge message
+  struct SingleTaskServerAckMessage* serverAck = malloc(sizeof (struct SingleTaskServerAckMessage));
+  if (serverAck == NULL) {
+    return NULL;
+  }
+  // read from buff into single task server acknowledge message
+  uint8_t* nextFreeBuf = readSingleTaskServerAckMessage(buffer, serverAck);
+  if (nextFreeBuf == NULL) {
+    return NULL;
+  }
+  return serverAck;
+}
 
 /**
  * Connects to the server with the given parameter.
@@ -99,209 +135,9 @@ int32_t connectServer(const uint8_t* host) {
   return filedescriptor;
 }
 
-void cleanUpMessage(struct Message* message) {
-  if (message != NULL) {
-    if (message->body != NULL) {
-      free(message->body);
-    }
-    free(message);
-  }
-}
-
-void _cleanUpTaskCreateMessage(struct TaskCreateMessage* taskCreateMessage) {
-  if (taskCreateMessage != NULL) {
-    cleanUpMessage(taskCreateMessage->head);
-    if (taskCreateMessage->taskType != NULL) {
-      free(taskCreateMessage->taskType);
-    }
-    if (taskCreateMessage->payload != NULL) {
-      free(taskCreateMessage->payload);
-    }
-    free(taskCreateMessage);
-  }
-}
-
-void cleanUpSingleTaskServerAckMessage(struct SingleTaskServerAckMessage* ack) {
-  if (ack != NULL) {
-    cleanUpMessage(ack->head);
-    free(ack);
-  }
-}
-
-void _cleanUpPollAndLockTaskMessage(struct PollAndLockTaskMessage* pollAndLockTaskMessage) {
-  if (pollAndLockTaskMessage != NULL) {
-    if (pollAndLockTaskMessage->taskType != NULL) {
-      free(pollAndLockTaskMessage->taskType);
-    }
-    free(pollAndLockTaskMessage);
-  }
-}
-
-/**
- * Creates a message structure, with the given message.
- *
- * @param transportProtocol the transport protocol message, which should be a composite of the message struct.
- * @param len the length of the message
- * @return a pointer of the created message struct
- */
-struct Message* _createMessage(struct TransportProtocol* transportProtocol, int32_t len) {
-  // init message
-  struct Message* message = malloc(sizeof (struct Message));
-  if (message == NULL) {
-    return message;
-  }
-
-  message->len = len; // htonl(len);
-  message->version = 1;
-  message->flags = 2;
-  message->type = 0; //htons(4);
-  message->streamId = 1; //htonl(1);
-
-  //copy transport protocol message int32_to body
-  message->body = malloc(sizeof (struct TransportProtocol));
-  if (message->body == NULL) {
-    return message;
-  }
-  memcpy(message->body, transportProtocol, len);
-  return message;
-}
-
-
-/**
- * Returns next aligned size. The returned size is completely divisible with 8.
- *
- * @param size the size which should be aligned
- * @return the aligned size
- */
-int32_t _allignedSize(int32_t size) {
-  return (size + (8 - 1)) & ~(8 - 1);
-}
-
-//uint8_t* _createBufferFromMessage(struct Message* message, int32_t alignedSize) {
-//  //create buffer
-//  uint8_t* buffer = calloc(alignedSize, sizeof (uint8_t));
-//  if (buffer == NULL) {
-//    return buffer;
-//  }
-//
-//  //copy values
-//  if (alignedSize >= MSG_HEADER_LEN) {
-//    //copy message header
-//    memcpy(buffer, (uint8_t*) message, MSG_HEADER_LEN);
-//    if (alignedSize >= MSG_HEADER_LEN + TRANS_HEADER_LEN) {
-//      //copy transport protocol message header
-//      memcpy(&buffer[MSG_HEADER_LEN], message->body, TRANS_HEADER_LEN);
-//      if (message->body->templateId == CREATE_TASK_REQUEST
-//              && alignedSize >= MSG_HEADER_LEN + TRANS_HEADER_LEN + message->body->bodyLen) {
-//        //copy task create message
-//        uint8_t b[message->body->bodyLen];
-//        memcpy(b, message->body->body, message->body->bodyLen);
-//        memcpy(&buffer[MSG_HEADER_LEN + TRANS_HEADER_LEN], message->body->body, message->body->bodyLen);
-//
-//      } else if (message->body->templateId == POLL_AND_LOCK_REQUEST
-//              && alignedSize >= MSG_HEADER_LEN + TRANS_HEADER_LEN + message->body->bodyLen) {
-//        memcpy(&buffer[MSG_HEADER_LEN + TRANS_HEADER_LEN], message->body->body, message->body->bodyLen);
-//
-//      }
-//    }
-//  }
-//
-//  return buffer;
-//}
-
-//int32_t sendMessage(int32_t fileDescriptor, struct TransportProtocol* transportProtocol, int32_t len) {
-//
-//  struct Message* message = _createMessage(transportProtocol, len);
-//  if (message == NULL) {
-//    return -1;
-//  }
-//
-//  int32_t bytes = MSG_HEADER_LEN + len;
-//  //we need buffer aligned to 8 divid
-//  int32_t alignedSize = _allignedSize(bytes);
-//  uint8_t* buffer = _createBufferFromMessage(message, alignedSize);
-//  if (buffer == NULL) {
-//    cleanUpMessage(message);
-//    return -1;
-//  }
-//  //send message
-//  _sendMessage(fileDescriptor, buffer, alignedSize);
-//
-//  //clean up
-//  free(buffer);
-//  cleanUpMessage(message);
-//  return 0;
-//}
-
-struct TransportProtocol* _createTransportProtocol(short templateId) {
-  struct TransportProtocol* transportProtocol = malloc(sizeof (struct TransportProtocol));
-  if (transportProtocol == NULL) {
-    return NULL;
-  }
-  //generated by the client
-  transportProtocol->protocolId = 0;
-  transportProtocol->connectionId = 2562132L;
-  transportProtocol->requestId = 2551312L;
-
-  //init protocol
-  transportProtocol->blockLength = 0;
-  transportProtocol->templateId = templateId;
-  transportProtocol->schemaId = 1;
-  transportProtocol->version = 1;
-  transportProtocol->resourceId = 0;
-  transportProtocol->shardId = -2; //not supported yet
-  return transportProtocol;
-}
-
-struct VariableData* _createVariableData(const uint8_t* data) {
-  struct VariableData* variableData = malloc(sizeof (struct VariableData));
-  if (variableData == NULL) {
-    return NULL;
-  }
-
-  if (data == NULL) {
-    variableData->data = NULL;
-    variableData->length = 0;
-  } else {
-    variableData->length = strlen(data);
-    variableData->data = calloc(variableData->length, sizeof (uint8_t));
-    if (variableData->data == NULL) {
-      return NULL;
-    }
-    memcpy(variableData->data, data, variableData->length);
-  }
-  return variableData;
-}
-
-struct TaskCreateMessage* _createTaskCreateMessage(const uint8_t* topic) {
-  struct TaskCreateMessage* taskCreateMsg = malloc(sizeof (struct TaskCreateMessage));
-  if (taskCreateMsg == NULL) {
-    return NULL;
-  }
-
-  struct TransportProtocol* transportProtocol = _createTransportProtocol(CREATE_TASK_REQUEST);
-  if (transportProtocol == NULL) {
-    return NULL;
-  }
-
-  taskCreateMsg->taskType = _createVariableData(topic);
-  taskCreateMsg->payload = _createVariableData(NULL); //not supported yet
-
-  transportProtocol->bodyLen = TASK_CREATE_HEADER_LEN
-                             + taskCreateMsg->taskType->length
-                             + taskCreateMsg->payload->length;
-
-  int32_t len = TRANS_HEADER_LEN + transportProtocol->bodyLen;
-  taskCreateMsg->head = _createMessage(transportProtocol, len);
-  if (taskCreateMsg->head == NULL) {
-    return NULL;
-  }
-  return taskCreateMsg;
-}
-
 struct SingleTaskServerAckMessage* createTask(int32_t fileDescriptor, const uint8_t* topic) {
   //init create message
-  struct TaskCreateMessage* taskCreateMsg = _createTaskCreateMessage(topic);
+  struct TaskCreateMessage* taskCreateMsg = createTaskCreateMessage(topic);
   if (taskCreateMsg == NULL) {
     return NULL;
   }
@@ -312,46 +148,27 @@ struct SingleTaskServerAckMessage* createTask(int32_t fileDescriptor, const uint
 
   uint8_t* buffer = calloc(alignedSize, sizeof (uint8_t));
   if (buffer == NULL) {
-    _cleanUpTaskCreateMessage(taskCreateMsg);
+    freeTaskCreateMessage(taskCreateMsg);
     return NULL;
   }
   uint8_t* nextFreeBuf = writeTaskCreateMessage(buffer, taskCreateMsg);
   if (nextFreeBuf == NULL) {
-    _cleanUpTaskCreateMessage(taskCreateMsg);
+    freeTaskCreateMessage(taskCreateMsg);
     return NULL;
   }
   //send message
   int32_t result = _sendBytes(fileDescriptor, buffer, alignedSize);
   struct SingleTaskServerAckMessage* ack = NULL;
   if (result > 0) {
-    ack = readCreateTaskServerAck(fileDescriptor);
+    ack = _readCreateTaskServerAck(fileDescriptor);
   }
 
   //clean up buffer and task message
-  _cleanUpTaskCreateMessage(taskCreateMsg);
+  freeTaskCreateMessage(taskCreateMsg);
   free(buffer);
   return ack;
 }
 
-struct SingleTaskServerAckMessage* readCreateTaskServerAck(int32_t fileDescriptor) {
-  //read acknowledgment
-  const int32_t ackSize = 56;
-  uint8_t* buffer = _readBytes(fileDescriptor, ackSize);
-  if (buffer == NULL) {
-    return NULL;
-  }
-  //allocate space for acknowledge message
-  struct SingleTaskServerAckMessage* serverAck = malloc(sizeof (struct SingleTaskServerAckMessage));
-  if (serverAck == NULL) {
-    return NULL;
-  }
-  // read from buff into single task server acknowledge message
-  uint8_t* nextFreeBuf = readSingleTaskServerAckMessage(buffer, serverAck);
-  if (nextFreeBuf == NULL) {
-    return NULL;
-  }
-  return serverAck;
-}
 
 //
 //int32_t pollAndLockTask(int32_t fileDescriptor, const uint8_t* taskTopic) {

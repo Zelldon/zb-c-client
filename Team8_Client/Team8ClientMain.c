@@ -58,7 +58,7 @@ void createTaskOnBroker(int fileDescriptor, const char* topic) {
   }
 
   printf("Got server acknowledgment that task with topic %s was successfully created.\nTask has id: %ld", topic, ack->taskId);
-  cleanUpSingleTaskServerAckMessage(ack);
+  freeSingleTaskServerAckMessage(ack);
 }
 
 /**

@@ -35,7 +35,7 @@ extern "C" {
 
 #define CREATE_TASK_REQUEST 0
 #define POLL_AND_LOCK_REQUEST 1
-  
+
 #define MSG_HEADER_LEN 12
 
   /**
@@ -142,6 +142,86 @@ extern "C" {
     int64_t taskId;
   };
 
+  // create structures /////////////////////////////////////////////////////////
+
+  /**
+   * Creates a message structure, with the given transport protocol.
+   *
+   * @param transportProtocol the transport protocol, which should be a composite of the message structure
+   * @param len the length of the message
+   * @return a pointer of the created message structure
+   */
+  struct Message* createMessage(struct TransportProtocol* transportProtocol, int32_t len);
+
+  /**
+   * Creates a transport protocol structure, with the given template id.
+   *
+   * @param templateId the template id for the transport protocol
+   * @return a pointer of the create transport protocol structure
+   */
+  struct TransportProtocol* createTransportProtocol(int16_t templateId);
+
+  /**
+   * Creates a variable data structure, with the given data.
+   *
+   * @param data the data for the variable data structure
+   * @return a pointer of the create variable structure
+   */
+  struct VariableData* createVariableData(const uint8_t* data);
+
+  /**
+   * Creates a task create message structure, with the given topic.
+   *
+   * @param topic the topic for the task create message structure
+   * @return a pointer of the create variable structure
+   */
+  struct TaskCreateMessage* createTaskCreateMessage(const uint8_t* topic);
+
+  // free structures ///////////////////////////////////////////////////////////
+
+  /**
+   * Frees the allocated memory for the given message structure.
+   *
+   * @param message the pointer to the structure which should be freed
+   */
+  void freeMessage(struct Message* message);
+
+  /**
+   * Frees the allocated memory for the given transport protocol structure.
+   *
+   * @param transportProtocol the pointer to the structure which should be freed
+   */
+  void freeTransportProtocol(struct TransportProtocol* transportProtocol);
+
+  /**
+   * Frees the allocated memory for the given variable data structure.
+   *
+   * @param variableData the pointer to the structure which should be freed
+   */
+  void freeVariableData(struct VariableData* variableData);
+
+  /**
+   * Frees the allocated memory for the given task create message structure.
+   *
+   * @param taskCreateMessage the pointer to the structure which should be freed
+   */
+  void freeTaskCreateMessage(struct TaskCreateMessage* taskCreateMessage);
+
+  /**
+   * Frees the allocated memory for the given single task server ack message structure.
+   *
+   * @param ack the pointer to the structure which should be freed
+   */
+  void freeSingleTaskServerAckMessage(struct SingleTaskServerAckMessage* ack);
+
+  /**
+   * Frees the allocated memory for the given poll and lock task message structure.
+   *
+   * @param pollAndLockTaskMessage the pointer to the structure which should be freed
+   */
+  void freePollAndLockTaskMessage(struct PollAndLockTaskMessage* pollAndLockTaskMessage);
+
+  // write structures //////////////////////////////////////////////////////////
 
   /**
    * Writes the given message into the buffer.

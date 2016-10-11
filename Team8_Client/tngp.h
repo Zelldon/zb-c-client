@@ -52,26 +52,6 @@ extern "C" {
 int32_t connectServer(const uint8_t* host);
 
 /**
- * Sends the transport protocol message to the connected server, with help of the file descriptor.
- *
- * @param fileDescriptor the file descriptor of the connected socket
- * @param transportProtocol the transportProtocol message which should be send
- * @param len the length of the hole message
- * @return the status of the send
- */
-int32_t sendMessage(int32_t fileDescriptor, struct TransportProtocol* transportProtocol, int32_t len);
-
-
-/**
- * Reads the acknowledgment of the server that a task was created,
- *
- * @param fileDescriptor the file descriptor of the connected socket
- * @return the message which was read and send by the server. The server contains the header and single task acknowledgment.
- *         NULL if something goes wrong.
- */
-struct SingleTaskServerAckMessage* readCreateTaskServerAck(int32_t fileDescriptor);
-
-/**
  * Uses the given file descriptor to send a create task message to the server.
  *
  * @param fileDescriptor the file descriptor of the connected socket
@@ -83,9 +63,6 @@ struct SingleTaskServerAckMessage* createTask(int32_t fileDescriptor, const uint
 int32_t pollAndLockTask(int32_t fileDescriptor, const uint8_t* topic);
 
 struct Message* readPollAndLockServerAck(int32_t fileDescriptor);
-
-void cleanUpMessage(struct Message* message);
-void cleanUpSingleTaskServerAckMessage(struct SingleTaskServerAckMessage* ack);
 
 #ifdef __cplusplus
 }
