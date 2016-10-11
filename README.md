@@ -26,7 +26,7 @@ $ make
 $ sudo make install
 ```
 
-Documentation how to install CUnit for Netbeans see [documentation](https://netbeans.org/kb/docs/cnd/c-unit-test.html).
+How to install CUnit for Netbeans see [documentation](https://netbeans.org/kb/docs/cnd/c-unit-test.html).
 
 ## Run Tests
 
