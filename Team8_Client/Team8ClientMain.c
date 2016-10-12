@@ -53,6 +53,7 @@ void createTaskOnBroker(int fileDescriptor, const char* topic) {
 
   struct SingleTaskServerAckMessage* ack = createTask(fileDescriptor, topic);
   if (ack == NULL) {
+    freeSingleTaskServerAckMessage(ack);
     perror("ERROR writing to socket");
     exit(EXIT_FAILURE);
   }

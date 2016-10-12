@@ -33,11 +33,7 @@ struct Message* createMessage(struct TransportProtocol* transportProtocol, int32
   message->streamId = 1; //htonl(1);
 
   //copy transport protocol message int32_to body
-  message->body = malloc(sizeof (struct TransportProtocol));
-  if (message->body == NULL) {
-    return message;
-  }
-  memcpy(message->body, transportProtocol, len);
+  message->body = transportProtocol;
   return message;
 }
 
@@ -89,6 +85,7 @@ struct TaskCreateMessage* createTaskCreateMessage(const uint8_t* topic) {
 
   struct TransportProtocol* transportProtocol = createTransportProtocol(CREATE_TASK_REQUEST);
   if (transportProtocol == NULL) {
+    free(taskCreateMsg);
     return NULL;
   }
 
@@ -102,6 +99,8 @@ struct TaskCreateMessage* createTaskCreateMessage(const uint8_t* topic) {
   int32_t len = TRANS_HEADER_LEN + transportProtocol->bodyLen;
   taskCreateMsg->head = createMessage(transportProtocol, len);
   if (taskCreateMsg->head == NULL) {
+    freeTransportProtocol(transportProtocol);
+    free(taskCreateMsg);
     return NULL;
   }
   return taskCreateMsg;
@@ -133,7 +132,9 @@ void freeVariableData(struct VariableData* variableData) {
 
 void freeTaskCreateMessage(struct TaskCreateMessage* taskCreateMessage) {
   if (taskCreateMessage != NULL) {
-    freeMessage(taskCreateMessage->head);
+    if (taskCreateMessage->head != NULL) {
+      freeMessage(taskCreateMessage->head);
+    }
     if (taskCreateMessage->taskType != NULL) {
       freeVariableData(taskCreateMessage->taskType);
     }

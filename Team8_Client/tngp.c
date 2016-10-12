@@ -93,13 +93,12 @@ struct SingleTaskServerAckMessage* _readCreateTaskServerAck(int32_t fileDescript
   //allocate space for acknowledge message
   struct SingleTaskServerAckMessage* serverAck = malloc(sizeof (struct SingleTaskServerAckMessage));
   if (serverAck == NULL) {
+    free(buffer);
     return NULL;
   }
   // read from buff into single task server acknowledge message
-  uint8_t* nextFreeBuf = readSingleTaskServerAckMessage(buffer, serverAck);
-  if (nextFreeBuf == NULL) {
-    return NULL;
-  }
+  readSingleTaskServerAckMessage(buffer, serverAck);
+  free(buffer);
   return serverAck;
 }
 
@@ -151,11 +150,8 @@ struct SingleTaskServerAckMessage* createTask(int32_t fileDescriptor, const uint
     freeTaskCreateMessage(taskCreateMsg);
     return NULL;
   }
-  uint8_t* nextFreeBuf = writeTaskCreateMessage(buffer, taskCreateMsg);
-  if (nextFreeBuf == NULL) {
-    freeTaskCreateMessage(taskCreateMsg);
-    return NULL;
-  }
+  writeTaskCreateMessage(buffer, taskCreateMsg);
+
   //send message
   int32_t result = _sendBytes(fileDescriptor, buffer, alignedSize);
   struct SingleTaskServerAckMessage* ack = NULL;
