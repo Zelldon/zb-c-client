@@ -60,9 +60,7 @@ int32_t connectServer(const uint8_t* host);
  */
 struct SingleTaskServerAckMessage* createTask(int32_t fileDescriptor, const uint8_t* topic);
 
-int32_t pollAndLockTask(int32_t fileDescriptor, const uint8_t* topic);
-
-struct Message* readPollAndLockServerAck(int32_t fileDescriptor);
+struct LockedTaskBatchMessage* pollAndLockTask(int32_t fileDescriptor, const uint8_t* taskTopic);
 
 #ifdef __cplusplus
 }

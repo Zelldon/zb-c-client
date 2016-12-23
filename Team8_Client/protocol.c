@@ -106,6 +106,35 @@ struct TaskCreateMessage* createTaskCreateMessage(const uint8_t* topic) {
   return taskCreateMsg;
 }
 
+struct PollAndLockTaskMessage* createPollAndLockmessage(const uint8_t* taskTopic) {
+  struct TransportProtocol* transportProtocol = createTransportProtocol(POLL_AND_LOCK_REQUEST);
+  if (transportProtocol == NULL) {
+    return NULL;
+  }
+
+
+  struct PollAndLockTaskMessage* pollAndLockMsg = malloc(sizeof (struct PollAndLockTaskMessage));
+  if (pollAndLockMsg == NULL) {
+    freeTransportProtocol(transportProtocol);
+    return NULL;
+  }
+
+  pollAndLockMsg->consumerId = 0;
+  pollAndLockMsg->lockTime = 15 * 60 * 1000;
+  pollAndLockMsg->maxTasks = 1;
+  pollAndLockMsg->taskType = createVariableData(taskTopic);
+  transportProtocol->bodyLen = POLL_AND_LOCK_HEADER_LEN + POLL_AND_LOCK_TYPE_LEN + pollAndLockMsg->taskType->length;
+
+  int32_t len = TRANS_HEADER_LEN + transportProtocol->bodyLen;
+  pollAndLockMsg->head = createMessage(transportProtocol, len);
+  if (pollAndLockMsg->head == NULL) {
+    freeTransportProtocol(transportProtocol);
+    freePollAndLockTaskMessage(pollAndLockMsg);
+    return NULL;
+  }
+  return pollAndLockMsg;
+}
+
 // free structures /////////////////////////////////////////////////////////////
 
 void freeMessage(struct Message* message) {
@@ -154,10 +183,22 @@ void freeSingleTaskServerAckMessage(struct SingleTaskServerAckMessage* ack) {
 
 void freePollAndLockTaskMessage(struct PollAndLockTaskMessage* pollAndLockTaskMessage) {
   if (pollAndLockTaskMessage != NULL) {
+    if (pollAndLockTaskMessage->head != NULL) {
+      freeMessage(pollAndLockTaskMessage->head);
+    }
     if (pollAndLockTaskMessage->taskType != NULL) {
       freeVariableData(pollAndLockTaskMessage->taskType);
     }
     free(pollAndLockTaskMessage);
+  }
+}
+
+void freeLockedTaskBatchMessage(struct LockedTaskBatchMessage* lockedTaskBatchMessage) {
+  if (lockedTaskBatchMessage != NULL) {
+    if (lockedTaskBatchMessage->head != NULL) {
+      freeMessage(lockedTaskBatchMessage->head);
+    }
+    free(lockedTaskBatchMessage);
   }
 }
 
@@ -201,14 +242,13 @@ uint8_t* writeVariableData(uint8_t* buffer, struct VariableData* data) {
 }
 
 void writePollAndLockTaskMessage(uint8_t* buffer, struct PollAndLockTaskMessage* pollAndLock) {
-  uint8_t* nextFreeBuff = serialize_int16(buffer, pollAndLock->consumerId);
+  uint8_t* nextFreeBuff = writeMessage(buffer, pollAndLock->head);
+  nextFreeBuff = serialize_int16(buffer, pollAndLock->consumerId);
   nextFreeBuff = serialize_int64(nextFreeBuff, pollAndLock->lockTime);
   nextFreeBuff = serialize_int16(nextFreeBuff, pollAndLock->maxTasks);
   //task type
   writeVariableData(nextFreeBuff, pollAndLock->taskType);
 }
-
-
 
 // read structures /////////////////////////////////////////////////////////////
 
@@ -247,5 +287,18 @@ uint8_t* readSingleTaskServerAckMessage(uint8_t* buffer, struct SingleTaskServer
     return NULL;
   }
   uint8_t* nextFreeBuff = readMessage(buffer, ack->head);
+  return deserialize_int64(nextFreeBuff, &ack->taskId);
+}
+
+uint8_t* readLockedBatchMessage(uint8_t* buffer, struct LockedTaskBatchMessage* ack) {
+  ack->head = malloc(sizeof (struct Message));
+  if (ack->head == NULL) {
+    return NULL;
+  }
+  uint8_t* nextFreeBuff = readMessage(buffer, ack->head);
+  nextFreeBuff = deserialize_int16(nextFreeBuff, &ack->consumerId);
+  nextFreeBuff = deserialize_int64(nextFreeBuff, &ack->lockTime);
+  nextFreeBuff = deserialize_int16(nextFreeBuff, &ack->blockLength);
+  nextFreeBuff = deserialize_int8(nextFreeBuff, &ack->numInGroup);
   return deserialize_int64(nextFreeBuff, &ack->taskId);
 }

@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <stdint.h>
+
 #include "tngp.h"
 
 /**
@@ -102,6 +104,27 @@ struct SingleTaskServerAckMessage* _readCreateTaskServerAck(int32_t fileDescript
   return serverAck;
 }
 
+struct LockedTaskBatchMessage* _readLockedTaskBatchMessage(int32_t fileDescriptor) {
+  //read acknowledgment
+  const int32_t ackSize = 256;
+  uint8_t* buffer = _readBytes(fileDescriptor, ackSize);
+  if (buffer == NULL) {
+    return NULL;
+  }
+
+  //allocate space for acknowledge message
+  struct LockedTaskBatchMessage* serverAck = malloc(sizeof (struct LockedTaskBatchMessage));
+  if (serverAck == NULL) {
+    free(buffer);
+    return NULL;
+  }
+
+  // read from buff into single task server acknowledge message
+  readLockedBatchMessage(buffer, serverAck);
+  free(buffer);
+  return serverAck;
+}
+
 /**
  * Connects to the server with the given parameter.
  * Uses the PORT makro for the connection port.
@@ -165,6 +188,36 @@ struct SingleTaskServerAckMessage* createTask(int32_t fileDescriptor, const uint
   return ack;
 }
 
+struct LockedTaskBatchMessage* pollAndLockTask(int32_t fileDescriptor, const uint8_t* taskTopic) {
+  //init poll and lock message
+  struct PollAndLockTaskMessage* pollAndLockMsg = createPollAndLockmessage(taskTopic);
+  if (pollAndLockMsg == NULL) {
+    return NULL;
+  }
+
+  //we need buffer aligned to 8 divid
+  int32_t bytes = MSG_HEADER_LEN + pollAndLockMsg->head->len;
+  int32_t alignedSize = _allignedSize(bytes);
+
+  uint8_t* buffer = calloc(alignedSize, sizeof (uint8_t));
+  if (buffer == NULL) {
+    freePollAndLockTaskMessage(pollAndLockMsg);
+    return NULL;
+  }
+  writePollAndLockTaskMessage(buffer, pollAndLockMsg);
+
+  //send message
+  int32_t result = _sendBytes(fileDescriptor, buffer, alignedSize);
+  struct LockedTaskBatchMessage* ack = NULL;
+  if (result > 0) {
+    ack = _readLockedTaskBatchMessage(fileDescriptor);
+  }
+
+  //clean up buffer and task message
+  freePollAndLockTaskMessage(pollAndLockMsg);
+  free(buffer);
+  return ack;
+}
 
 //
 //int32_t pollAndLockTask(int32_t fileDescriptor, const uint8_t* taskTopic) {

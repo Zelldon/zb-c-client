@@ -68,7 +68,16 @@ void createTaskOnBroker(int fileDescriptor, const char* topic) {
  * @param fileDescriptor the file descriptor to connect with the broker
  * @param topic the topic of the task which should be polled and locked
  */
-//void pollAndLockOnBroker(int fileDescriptor, const char* topic) {
+void pollAndLockOnBroker(int fileDescriptor, const char* topic) {
+  struct LockedTaskBatchMessage* ack = pollAndLockTask(fileDescriptor, topic);
+  if (ack == NULL) {
+    perror("ERROR writing to socket");
+    exit(EXIT_FAILURE);
+  }
+
+  printf("Got server acknowledgment that task with topic %s was successfully locked.\n", topic);
+  printf("Task has id: %ld locked for %ld", ack->taskId, ack->lockTime);
+  freeLockedTaskBatchMessage(ack);
 //  int n = pollAndLockTask(fileDescriptor, topic);
 //  if (n < 0) {
 //    perror("ERROR writing to socket");
@@ -88,7 +97,7 @@ void createTaskOnBroker(int fileDescriptor, const char* topic) {
 //  printf("Polled task with id %c.", id);
 //
 //  cleanUpMessage(serverAck);
-//}
+}
 
 int main(int argc, char** argv) {
   puts("Welcome to the Team8-Client\n");
@@ -102,7 +111,7 @@ int main(int argc, char** argv) {
   createTaskOnBroker(fileDescriptor, topic);
 
   //poll and lock
-//  pollAndLockOnBroker(fileDescriptor, topic);
+  pollAndLockOnBroker(fileDescriptor, topic);
 
   return (EXIT_SUCCESS);
 }

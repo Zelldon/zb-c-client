@@ -118,11 +118,13 @@ extern "C" {
    * Defines the message to poll and lock an existing task.
    */
   struct PollAndLockTaskMessage {
+    //head
+    struct Message* head;
     int16_t consumerId;
     int64_t lockTime;
     int16_t maxTasks;
 
-    //task type
+    //body
     struct VariableData* taskType;
   };
 
@@ -134,6 +136,8 @@ extern "C" {
    * a task is polled and locked.
    */
   struct LockedTaskBatchMessage {
+    //header
+    struct Message* head;
     int16_t consumerId;
     int64_t lockTime;
     int16_t blockLength;
@@ -176,6 +180,8 @@ extern "C" {
    * @return a pointer of the create variable structure
    */
   struct TaskCreateMessage* createTaskCreateMessage(const uint8_t* topic);
+
+  struct PollAndLockTaskMessage* createPollAndLockmessage(const uint8_t* taskTopic);
 
   // free structures ///////////////////////////////////////////////////////////
 
@@ -220,6 +226,8 @@ extern "C" {
    * @param pollAndLockTaskMessage the pointer to the structure which should be freed
    */
   void freePollAndLockTaskMessage(struct PollAndLockTaskMessage* pollAndLockTaskMessage);
+
+  void freeLockedTaskBatchMessage(struct LockedTaskBatchMessage* lockedTaskBatchMessage);
 
   // write structures //////////////////////////////////////////////////////////
 
@@ -299,6 +307,8 @@ extern "C" {
    * @return the pointer which points to the next place in the buffer
    */
   uint8_t* readSingleTaskServerAckMessage(uint8_t* buffer, struct SingleTaskServerAckMessage* ack);
+
+  uint8_t* readLockedBatchMessage(uint8_t* buffer, struct LockedTaskBatchMessage* ack);
 
 #ifdef __cplusplus
 }
